@@ -162,7 +162,7 @@
        <item row="0" column="0">
         <widget class="QTabWidget" name="tabWidget">
          <property name="currentIndex">
-          <number>2</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="Resoult_tab">
           <attribute name="title">
@@ -208,9 +208,6 @@
               <property name="spacing">
                <number>0</number>
               </property>
-              <item row="0" column="0">
-               <layout class="QGridLayout" name="graphResoult_gridLayout"/>
-              </item>
               <item row="0" column="1">
                <widget class="QWidget" name="Coordinat_widget" native="true">
                 <property name="minimumSize">
@@ -310,6 +307,19 @@
                 </layout>
                </widget>
               </item>
+              <item row="0" column="0">
+               <widget class="QWidget" name="graphResoult_widget" native="true">
+                <layout class="QGridLayout" name="gridLayout_15">
+                 <item row="0" column="0">
+                  <layout class="QGridLayout" name="graphResoult_gridLayout">
+                   <property name="spacing">
+                    <number>6</number>
+                   </property>
+                  </layout>
+                 </item>
+                </layout>
+               </widget>
+              </item>
              </layout>
             </widget>
            </item>
@@ -359,9 +369,6 @@
               <property name="spacing">
                <number>0</number>
               </property>
-              <item row="0" column="0">
-               <layout class="QGridLayout" name="graphTable_gridLayout"/>
-              </item>
               <item row="0" column="1">
                <widget class="QWidget" name="Table_widget" native="true">
                 <property name="minimumSize">
@@ -460,6 +467,15 @@
                 </layout>
                </widget>
               </item>
+              <item row="0" column="0">
+               <widget class="QWidget" name="graphTable_widget" native="true">
+                <layout class="QGridLayout" name="gridLayout_19">
+                 <item row="0" column="0">
+                  <layout class="QGridLayout" name="graphTable_gridLayout"/>
+                 </item>
+                </layout>
+               </widget>
+              </item>
              </layout>
             </widget>
            </item>
@@ -486,7 +502,13 @@
             <number>0</number>
            </property>
            <item row="0" column="0">
-            <layout class="QGridLayout" name="graphs_gridLayout"/>
+            <widget class="QWidget" name="graphs_widget" native="true">
+             <layout class="QGridLayout" name="gridLayout_20">
+              <item row="0" column="0">
+               <layout class="QGridLayout" name="graphs_gridLayout"/>
+              </item>
+             </layout>
+            </widget>
            </item>
           </layout>
          </widget>
