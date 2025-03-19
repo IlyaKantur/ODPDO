@@ -5,6 +5,7 @@ from PyQt6.QtCore import QTime
 import sys
 import os
 import pyqtgraph as pg
+import numpy as np
 
 class window(QMainWindow):
     def __init__(self):
@@ -18,7 +19,7 @@ class window(QMainWindow):
         # Переменные
         self.Folder_path_1D = ""
         self.Name_File_1D = ""
-        self.File_path_1D = ""
+        self.File_path_1D = []
         self.cor_X_File_1D = []
         self.mas_Y_File_1D = []
         self.mas_sum_1D = []
@@ -83,11 +84,40 @@ class window(QMainWindow):
                     # Заполняем таблицу именами файлов
                     for row, file_name in enumerate(self.Name_File_1D):
                         self.ui.table_tableWidget.setItem(row, 0, QtWidgets.QTableWidgetItem(file_name))  # Добавляем имя файла в первую колонку
+
                     text = f'Загружено: {len(self.Name_File_1D)} файлов'
                     self.console(text, False)
+
+                    # Читаем данные из файлов и строим графики
+                    self.loadAndPlotData()
             else:
                 self.console("Папка пустая", False)
                     
+
+    def loadAndPlotData(self):
+        # Очищаем предыдущие графики
+        self.plot_widget_graphs.clear()
+
+        for file_path in self.File_path_1D:
+            # Чтение данных из файла
+            data = self.readDataFromFile(file_path)
+            if data is not None:
+                self.plotData(data, file_path)
+
+    def plotData(self, data, file_path):
+        # Предполагаем, что данные имеют два столбца: X и Y
+        x, y = data
+        # Строим график
+        self.plot_widget_graphs.plot(x, y, pen='r', name=os.path.basename(file_path))
+
+    def readDataFromFile(self, file_path):
+        try:
+            # Чтение данных из файла (предполагается, что данные разделены пробелом)
+            data = np.loadtxt(file_path, delimiter=' ')  # Измените разделитель, если необходимо
+            return data[:, 0], data[:, 1]  # Возвращаем два столбца: X и Y
+        except Exception as e:
+            self.console(f"Ошибка при чтении файла {file_path}: {str(e)}", True)
+            return None
 
     #  Выводит иформацию в консоль
     def console(self, text: str = "", error = False):
