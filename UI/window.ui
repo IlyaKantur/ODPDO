@@ -443,16 +443,10 @@
                     </item>
                     <item row="1" column="0">
                      <widget class="QTableWidget" name="CoordinatTable_tableWidget">
-                      <attribute name="horizontalHeaderVisible">
-                       <bool>true</bool>
-                      </attribute>
                       <attribute name="horizontalHeaderDefaultSectionSize">
                        <number>73</number>
                       </attribute>
                       <attribute name="horizontalHeaderHighlightSections">
-                       <bool>false</bool>
-                      </attribute>
-                      <attribute name="verticalHeaderVisible">
                        <bool>false</bool>
                       </attribute>
                       <column>
@@ -729,6 +723,9 @@
             <property name="buttonSymbols">
              <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
             </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
            </widget>
           </item>
           <item row="3" column="0">
@@ -811,6 +808,9 @@
             </property>
             <property name="keyboardTracking">
              <bool>true</bool>
+            </property>
+            <property name="minimum">
+             <number>1</number>
             </property>
            </widget>
           </item>

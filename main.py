@@ -37,9 +37,12 @@ class window(QMainWindow):
         # self.Timer_1D
 
         # Тригеры к кнопкам
-        self.ui.ClearConsole_pushButton.clicked.connect(self.console_clear) #Очистка консоли
-        self.ui.Folder_pushButton.clicked.connect(self.Folder_pushButton)
-        self.ui.Files_pushButton.clicked.connect(self.Files_pushButton)
+        self.ui.ClearConsole_pushButton.clicked.connect(self.console_clear) # Очистка консоли
+        self.ui.Folder_pushButton.clicked.connect(self.Folder_pushButton) # Загрузка из папки
+        self.ui.Files_pushButton.clicked.connect(self.Files_pushButton) # Загрузка выбраных файлов
+        # self.ui.Save_pushButton.clicked.connect(self.save) # Сохранение
+        self.ui.sum_pushButton.clicked.connect(self.sum_pushButton)
+
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -212,6 +215,55 @@ class window(QMainWindow):
             for i in range(len(y)):
                 self.ui.CoordinatTable_tableWidget.setItem(i, 0, QtWidgets.QTableWidgetItem(str(x[i])))  # X координаты
                 self.ui.CoordinatTable_tableWidget.setItem(i, 1, QtWidgets.QTableWidgetItem(str(y[i])))  # Y координаты
+
+    def sum_pushButton(self):
+        # Получаем значение из spinBox
+        sum_points = self.ui.sum_spinBox.value()
+        
+        # Проверяем, что значение больше 0
+        if sum_points <= 0:
+            self.console("Количество точек для суммирования должно быть больше 0", True)
+            return
+
+        # Создаем массив для хранения суммированных данных
+        total_y = None
+        total_x = None
+
+        # Суммируем данные по X
+        for data in self.data_files:
+            if data is not None:
+                x, y = data
+                # Суммируем по указанному количеству точек
+                summed_y = self.sumData(y, sum_points)
+
+                # Если это первый файл, инициализируем total_y
+                if total_y is None:
+                    total_y = np.zeros_like(summed_y)  # Инициализируем массив нулями
+                    total_x = np.linspace(0, len(y), len(summed_y))  # Создаем X для суммированных данных
+
+                # Добавляем суммированные значения к total_y
+                total_y += summed_y
+
+        # Теперь можно построить график для суммированных данных
+        self.plotSummedData(total_x, total_y)
+
+        text = 
+
+    def sumData(self, y, sum_points):
+        # Суммируем данные с использованием скользящего окна
+        summed_y = []
+        for i in range(0, len(y), sum_points):
+            # Суммируем значения в окне
+            window_sum = sum(y[i:i + sum_points])
+            summed_y.append(window_sum)
+        return summed_y
+
+    def plotSummedData(self, x, y):
+        # Очищаем предыдущие графики
+        self.plot_widget_resoult.clear()
+
+        # Строим график для суммированных данных
+        self.plot_widget_resoult.plot(x, y, pen='g', name='Суммированные данные')
 
 app = QtWidgets.QApplication([])
 mainWin = window()
