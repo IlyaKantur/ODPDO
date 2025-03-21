@@ -36,25 +36,40 @@ class window(QMainWindow):
         
         # self.Timer_1D
 
+        # Элементы для отображения точек координат
+        self.text_item_graphs = pg.TextItem(anchor=(0.5, -1.0), color=(0, 0, 0), fill=(255, 255, 255, 200))
+        self.text_item_graphs.setZValue(100)  # Устанавливаем высокое значение Z для отображения поверх графика
+        self.text_item_table = pg.TextItem(anchor=(0.5, -1.0), color=(0, 0, 0), fill=(255, 255, 255, 200))
+        self.text_item_table.setZValue(100)  # Устанавливаем высокое значение Z для отображения поверх графика
+        self.text_item_result = pg.TextItem(anchor=(0.5, -1.0), color=(0, 0, 0), fill=(255, 255, 255, 200))
+        self.text_item_result.setZValue(100)  # Устанавливаем высокое значение Z для отображения поверх графика
+        
         # Тригеры к кнопкам
         self.ui.ClearConsole_pushButton.clicked.connect(self.console_clear) # Очистка консоли
         self.ui.Folder_pushButton.clicked.connect(self.Folder_pushButton) # Загрузка из папки
         self.ui.Files_pushButton.clicked.connect(self.Files_pushButton) # Загрузка выбраных файлов
         # self.ui.Save_pushButton.clicked.connect(self.save) # Сохранение
         self.ui.sum_pushButton.clicked.connect(self.sum_pushButton)
+        self.ui.search_pushButton.clicked.connect(self.search_pushButtom)
 
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
         self.ui.graphResoult_gridLayout.addWidget(self.plot_widget_resoult)
+        self.plot_widget_resoult.addItem(self.text_item_result)
+        self.plot_widget_resoult.scene().sigMouseMoved.connect(self.mouse_moved_result)
         
         # Создаем PlotWidget для таблицы
         self.plot_widget_table = pg.PlotWidget()
         self.ui.graphTable_gridLayout.addWidget(self.plot_widget_table)
+        self.plot_widget_table.addItem(self.text_item_table)
+        self.plot_widget_table.scene().sigMouseMoved.connect(self.mouse_moved_table)
 
         # Создаем PlotWidget для графиков
         self.plot_widget_graphs = pg.PlotWidget()
         self.ui.graphs_gridLayout.addWidget(self.plot_widget_graphs)
+        self.plot_widget_graphs.addItem(self.text_item_graphs)
+        self.plot_widget_graphs.scene().sigMouseMoved.connect(self.mouse_moved_graphs)
 
         # Подключаем обработчик события для нажатия на ячейку таблицы
         self.ui.table_tableWidget.cellClicked.connect(self.on_table_cell_clicked)
@@ -157,7 +172,7 @@ class window(QMainWindow):
         current_plot_count = len(self.plot_widget_graphs.listDataItems())
         # Применяем смещение к Y
         y_shifted = y + current_plot_count * y_offset
-        # Строим график с учетом смещения
+        # Строим график с учетом смещения (линия с точками)
         self.plot_widget_graphs.plot(x, y_shifted, pen='r', name=os.path.basename(file_path))
 
     def readDataFromFile(self, file_path):
@@ -185,7 +200,7 @@ class window(QMainWindow):
     def console(self, text: str = "", error = False):
         current_time = QTime.currentTime().toString("HH:mm:ss")  # Получаем текущее время в формате ЧЧ:ММ:СС
         if error:
-            style_text = 'font-size:11pt;color: red'
+            style_text = 'font-size:11pt;color: "red"'
         else:
             style_text = 'font-size:11pt;'
         formatted_text = (
@@ -206,8 +221,10 @@ class window(QMainWindow):
             data = self.data_files[row]
             # Строим график в plot_widget_table
             self.plot_widget_table.clear()  # Очищаем предыдущий график
+            self.plot_widget_table.addItem(self.text_item_table)  # Возвращаем текстовый элемент
             x, y = data
-            self.plot_widget_table.plot(x, y, pen='b', name=self.Name_File_1D[row])  # Строим график
+            self.plot_widget_table.plot(x, y, pen='b', name=self.Name_File_1D[row], 
+                                        symbol='o', symbolSize=3, symbolBrush='b')  # Строим график с точками
 
             # Выводим координаты в CoordinatTable_tableWidget
             self.ui.CoordinatTable_tableWidget.clear()  # Очищаем предыдущие координаты
@@ -262,9 +279,191 @@ class window(QMainWindow):
     def plotSummedData(self, x, y):
         # Очищаем предыдущие графики
         self.plot_widget_resoult.clear()
+        self.plot_widget_resoult.addItem(self.text_item_result)  # Возвращаем текстовый элемент
 
-        # Строим график для суммированных данных
-        self.plot_widget_resoult.plot(x, y, pen='g', name='Суммированные данные')
+        # Строим график для суммированных данных с точками
+        self.plot_widget_resoult.plot(x, y, pen='g', name='Суммированные данные', 
+                                    symbol='o', symbolSize=3, symbolBrush='g')
+
+    # Функции для обработки движения мыши и отображения координат
+    def mouse_moved_result(self, pos):
+        self.show_point_coordinates(self.plot_widget_resoult, pos, self.text_item_result)       
+    def mouse_moved_table(self, pos):
+        self.show_point_coordinates(self.plot_widget_table, pos, self.text_item_table)
+    def mouse_moved_graphs(self, pos):
+        self.show_point_coordinates(self.plot_widget_graphs, pos, self.text_item_graphs)
+          
+    def show_point_coordinates(self, plot_widget, pos, text_item):
+        # Преобразование позиции мыши в координаты графика
+        plot_point = plot_widget.plotItem.vb.mapSceneToView(pos)
+        x, y = plot_point.x(), plot_point.y()
+        
+        # Получаем все элементы графика
+        data_items = plot_widget.listDataItems()
+        
+        # Получаем диапазоны осей для определения адаптивного порога близости
+        view_box = plot_widget.getViewBox()
+        view_range = view_box.viewRange()
+        x_range = view_range[0]  # Диапазон по X
+        y_range = view_range[1]  # Диапазон по Y
+        
+        # Вычисляем адаптивный порог расстояния (3% от диапазона осей)
+        x_threshold = (x_range[1] - x_range[0]) * 0.03
+        y_threshold = (y_range[1] - y_range[0]) * 0.03
+        threshold_distance = min(x_threshold, y_threshold)
+        # Ограничиваем минимальное и максимальное значение порога
+        threshold_distance = max(min(threshold_distance, 10), 3)
+        
+        # Проверяем близость к точкам
+        closest_point = None
+        min_distance = float('inf')
+        
+        for item in data_items:
+            data_x = item.xData
+            data_y = item.yData
+            
+            if data_x is None or data_y is None:
+                continue
+                
+            for i in range(len(data_x)):
+                # Вычисляем расстояние до точки графика
+                distance = ((data_x[i] - x) ** 2 + (data_y[i] - y) ** 2) ** 0.5
+                if distance < min_distance and distance < threshold_distance:  # Используем адаптивный порог
+                    min_distance = distance
+                    closest_point = (data_x[i], data_y[i])
+        
+        # Если нашли ближайшую точку - показываем координаты
+        if closest_point:
+            # Определяем границы для позиционирования
+            x_width = x_range[1] - x_range[0]
+            y_height = y_range[1] - y_range[0]
+            
+            # Отступы от границ (15% от размера видимой области)
+            x_margin = x_width * 0.15
+            y_margin = y_height * 0.15
+            
+            # Правая и левая границы
+            right_bound = x_range[1] - x_margin
+            left_bound = x_range[0] + x_margin
+            # Верхняя граница с отступом
+            upper_bound = y_range[1] - y_margin
+            
+            # Определяем положение точки относительно границ
+            near_right = closest_point[0] > right_bound
+            near_left = closest_point[0] < left_bound
+            near_top = closest_point[1] > upper_bound
+            
+            # Устанавливаем якорь в зависимости от положения точки
+            if near_top:
+                if near_right:
+                    text_item.setAnchor((1.0, 0.0))  # Точка в правом верхнем углу
+                elif near_left:
+                    text_item.setAnchor((0.0, 0.0))  # Точка в левом верхнем углу
+                else:
+                    text_item.setAnchor((0.5, 0.0))  # Точка вверху по центру
+            else:
+                if near_right:
+                    text_item.setAnchor((1.0, 1.0))  # Точка в правом нижнем углу
+                elif near_left:
+                    text_item.setAnchor((0.0, 1.0))  # Точка в левом нижнем углу
+                else:
+                    # В центральной области используем стандартную логику
+                    if closest_point[0] > (x_range[0] + x_range[1]) / 2:
+                        text_item.setAnchor((0.0, 1.0))  # Якорь слева внизу текста
+                    else:
+                        text_item.setAnchor((1.0, 1.0))  # Якорь справа внизу текста
+            
+            text_item.setText(f"X: {closest_point[0]:.2f}\nY: {closest_point[1]:.2f}")
+            text_item.setPos(closest_point[0], closest_point[1])
+            text_item.show()
+        else:
+            text_item.hide()
+
+    def search_pushButtom(self):
+        # Получаем значение из поля Element_lineEdit
+        element_text = self.ui.Element_lineEdit.text().strip()
+
+        if element_text == '':
+            self.console("Введите элемент", True)
+            return
+        
+        # Делаем первый символ заглавным, остальные строчными
+        element = element_text[0].upper() + element_text[1:].lower()
+        
+        # Формируем путь к папке и файлу
+        folder_path = os.path.join('Base', element)
+        file_path = os.path.join(folder_path, f"{element}.dat")
+        
+        # Проверяем существование папки и файла
+        if not os.path.exists(folder_path):
+            self.console(f"Папка {folder_path} не найдена", True)
+            return
+            
+        if not os.path.exists(file_path):
+            self.console(f"Файл {file_path} не найден", True)
+            return
+        
+        try:
+            # Открываем файл и читаем последнюю строку
+            with open(file_path, 'r') as file:
+                lines = file.readlines()
+                
+                if not lines:
+                    self.console(f"Файл {file_path} пуст", True)
+                    return
+                last_line = lines[-1].strip()
+                
+                # Разбиваем строку по символу "/"
+                parts = last_line.split('/')
+                
+                if len(parts) < 2:
+                    self.console(f"Неверный формат данных в файле {file_path}", True)
+                    return
+                
+                # Получаем числа из второй части
+                try:
+                    energy_values = [float(val) for val in parts[1].strip().split()]
+
+                    
+                    if len(energy_values) < 5:  # Нам нужно минимум 5 чисел для Ka и Kb
+                        self.console(f"Недостаточно значений в файле {file_path}", True)
+                        return
+                        
+                    # Создаем диалоговое окно для выбора линии
+                    msg_box = QtWidgets.QMessageBox()
+                    msg_box.setWindowTitle("Выбор линии")
+                    msg_box.setText("Какая линия?")
+                    
+                    # Добавляем кнопки Ka и Kb
+                    ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                    kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                    cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                    
+                    # Показываем диалоговое окно и ждем ответа
+                    msg_box.exec()
+                    
+                    clicked_button = msg_box.clickedButton()
+                    
+                    # Устанавливаем значения в зависимости от выбора пользователя
+                    if clicked_button == ka_button:
+                        # Для Ka используем первые два числа, умноженные на 1000
+                        self.ui.E_one_doubleSpinBox.setValue(energy_values[0] * 1000)
+                        self.ui.E_two_doubleSpinBox.setValue(energy_values[1] * 1000)
+                        self.console(f"Установлены значения для линии Ka: {energy_values[0] * 1000}, {energy_values[1] * 1000}")
+                    elif clicked_button == kb_button:
+                        # Для Kb используем 4-е и 5-е числа, умноженные на 1000
+                        self.ui.E_one_doubleSpinBox.setValue(energy_values[3] * 1000)
+                        self.ui.E_two_doubleSpinBox.setValue(energy_values[4] * 1000)
+                        self.console(f"Установлены значения для линии Kb: {energy_values[3] * 1000}, {energy_values[4] * 1000}")
+                    else:
+                        # Пользователь отменил операцию
+                        self.console("Операция отменена")
+                        
+                except ValueError:
+                    self.console(f"Ошибка при чтении числовых значений из файла {file_path}", True)
+                    
+        except Exception as e:
+            self.console(f"Ошибка при обработке файла {file_path}: {str(e)}", True)
 
 app = QtWidgets.QApplication([])
 mainWin = window()
