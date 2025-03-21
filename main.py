@@ -247,7 +247,8 @@ class window(QMainWindow):
         # Теперь можно построить график для суммированных данных
         self.plotSummedData(total_x, total_y)
 
-        text = 
+        text = f'Просуммировано {len(self.data_files)} файлов'
+        self.console(text, False)
 
     def sumData(self, y, sum_points):
         # Суммируем данные с использованием скользящего окна
