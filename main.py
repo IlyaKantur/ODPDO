@@ -51,6 +51,7 @@ class window(QMainWindow):
         # self.ui.Save_pushButton.clicked.connect(self.save) # Сохранение
         self.ui.sum_pushButton.clicked.connect(self.sum_pushButton)
         self.ui.search_pushButton.clicked.connect(self.search_pushButtom)
+        self.ui.Calibration_pushButton.clicked.connect(self.calibration_pushButton)
 
 
         # Создаем PlotWidget для результатов
@@ -256,11 +257,13 @@ class window(QMainWindow):
                 # Если это первый файл, инициализируем total_y
                 if total_y is None:
                     total_y = np.zeros_like(summed_y)  # Инициализируем массив нулями
-                    total_x = np.linspace(0, len(y), len(summed_y))  # Создаем X для суммированных данных
+                    total_x = np.arange(len(summed_y)) # Создаем X для суммированных данных 
+                    self.cor_X_File_1D = total_x
 
                 # Добавляем суммированные значения к total_y
                 total_y += summed_y
 
+        self.cor_Y_File_1D = total_y
         # Теперь можно построить график для суммированных данных
         self.plotSummedData(total_x, total_y)
 
@@ -464,6 +467,42 @@ class window(QMainWindow):
                     
         except Exception as e:
             self.console(f"Ошибка при обработке файла {file_path}: {str(e)}", True)
+
+    def calibration_pushButton(self):
+        # Получаем значения из полей
+        E_one = self.ui.E_one_doubleSpinBox.value()
+        E_two = self.ui.E_two_doubleSpinBox.value()
+        N_one = self.ui.N_one_doubleSpinBox.value()
+        N_two = self.ui.N_two_doubleSpinBox.value()
+        
+        # Проверяем, чтобы значения были не нулевые
+        if E_one == 0 or E_two == 0 or N_one == 0 or N_two == 0:
+            self.console("Ошибка: Все значения должны быть ненулевыми.", True)
+            return
+        
+        # Калибровка графика
+        [self.cor_X_File_1D, energy_step] = self.convert_to_energy(self.cor_X_File_1D, E_one, E_two, N_one, N_two)
+        
+        # Обновляем график
+        self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+        self.console(f'График откалиброван, шаг по энергии: {energy_step}', False)
+
+    def convert_to_energy(self, cor_X_File_1D, E_one, E_two, N_one, N_two):
+        # Вычисляем шаг по энергии
+        energy_step = (E_two - E_one) / (N_two - N_one)
+        energy_step = np.round(energy_step, 3) 
+        
+        # Вычисляем энергию первой точки
+        first_energy = E_one - energy_step * (N_one - cor_X_File_1D[0])
+        
+        # Вычисляем энергию для каждой точки
+        calibrated_values = [first_energy]  # Начинаем с первой энергии
+        for i in range(1, len(cor_X_File_1D)):
+            energy = first_energy + energy_step * i  # Прибавляем шаг для каждой следующей точки
+            calibrated_values.append(energy)
+        
+        return [calibrated_values, energy_step]
+
 
 app = QtWidgets.QApplication([])
 mainWin = window()
