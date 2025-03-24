@@ -1,11 +1,13 @@
 from UI import Ui_MainWindow
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (QMainWindow)
-from PyQt6.QtCore import QTime
+from PyQt6.QtCore import QTime, QDateTime
 import sys
 import os
 import pyqtgraph as pg
 import numpy as np
+import scipy as scipy
+from scipy.signal import savgol_filter
 
 class window(QMainWindow):
     def __init__(self):
@@ -22,7 +24,7 @@ class window(QMainWindow):
         self.File_path_1D = []
         self.data_files = []  # Массив для хранения данных из файлов
         self.cor_X_File_1D = []
-        self.mas_Y_File_1D = []
+        self.cor_Y_File_1D = []
         self.mas_sum_1D = []
         self.mas_new_sum_1D = []
 
@@ -30,11 +32,16 @@ class window(QMainWindow):
         self.table_Y = []
         
         self.calibrated = False #показывает был ли откалиброван
-        self.smoothed_1D = False #показывает был ли сглажен спектр
-        self.count_smoothed_1D = False #показывает сколько раз был сглажен
+        self.smoothed = False #показывает был ли сглажен спектр
+        self.count_smoothed = 0 #показывает сколько раз был сглажен
+        self.transition = None #хранит выбранный переход (Ka или Kb)
         # self.Title_1D
         
         # self.Timer_1D
+
+        # Сохраняем оригинальные данные для возможности отмены операций
+        self.original_X = []  # Оригинальные значения X (до калибровки)
+        self.original_Y = []  # Оригинальные значения Y (до сглаживания)
 
         # Элементы для отображения точек координат
         self.text_item_graphs = pg.TextItem(anchor=(0.5, -1.0), color=(0, 0, 0), fill=(255, 255, 255, 200))
@@ -48,34 +55,40 @@ class window(QMainWindow):
         self.ui.ClearConsole_pushButton.clicked.connect(self.console_clear) # Очистка консоли
         self.ui.Folder_pushButton.clicked.connect(self.Folder_pushButton) # Загрузка из папки
         self.ui.Files_pushButton.clicked.connect(self.Files_pushButton) # Загрузка выбраных файлов
-        # self.ui.Save_pushButton.clicked.connect(self.save) # Сохранение
+        self.ui.Save_pushButton.clicked.connect(self.save) # Сохранение
         self.ui.sum_pushButton.clicked.connect(self.sum_pushButton)
         self.ui.search_pushButton.clicked.connect(self.search_pushButtom)
         self.ui.Calibration_pushButton.clicked.connect(self.calibration_pushButton)
-
+        self.ui.CancelCalibrate_pushButton.clicked.connect(self.cancel_calibrate_pushButton)
+        self.ui.Smooth_pushButton.clicked.connect(self.smooth_pushButton)
+        self.ui.CancelSmooth_pushButton.clicked.connect(self.cancel_smooth_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
         self.ui.graphResoult_gridLayout.addWidget(self.plot_widget_resoult)
         self.plot_widget_resoult.addItem(self.text_item_result)
         self.plot_widget_resoult.scene().sigMouseMoved.connect(self.mouse_moved_result)
+        self.plot_widget_resoult.getViewBox().setMouseMode(pg.ViewBox.RectMode)
         
         # Создаем PlotWidget для таблицы
         self.plot_widget_table = pg.PlotWidget()
         self.ui.graphTable_gridLayout.addWidget(self.plot_widget_table)
         self.plot_widget_table.addItem(self.text_item_table)
         self.plot_widget_table.scene().sigMouseMoved.connect(self.mouse_moved_table)
+        self.plot_widget_table.getViewBox().setMouseMode(pg.ViewBox.RectMode)
 
         # Создаем PlotWidget для графиков
         self.plot_widget_graphs = pg.PlotWidget()
         self.ui.graphs_gridLayout.addWidget(self.plot_widget_graphs)
         self.plot_widget_graphs.addItem(self.text_item_graphs)
         self.plot_widget_graphs.scene().sigMouseMoved.connect(self.mouse_moved_graphs)
+        self.plot_widget_graphs.getViewBox().setMouseMode(pg.ViewBox.RectMode)
 
         # Подключаем обработчик события для нажатия на ячейку таблицы
         self.ui.table_tableWidget.cellClicked.connect(self.on_table_cell_clicked)
 
         self.console("Программа запущена", False)
+
 
     def Folder_pushButton(self):
         # Открываем диалоговое окно для выбора папки
@@ -197,6 +210,85 @@ class window(QMainWindow):
             self.console(f"Ошибка при чтении файла {os.path.basename(file_path)}: {str(e)}", True)
             return None
 
+    def save(self):
+        # Проверяем, есть ли данные для сохранения
+        if len(self.cor_X_File_1D) == 0 or len(self.cor_Y_File_1D) == 0:
+            self.console("Нет данных для сохранения", True)
+            return
+            
+        # Получаем значения из полей
+        compound = self.ui.Compound_lineEdit.text().strip()
+        element = self.ui.Element_lineEdit.text().strip()
+        
+        # Если поля пустые, используем значения по умолчанию
+        if not compound:
+            compound = "NoCompound"
+        if not element:
+            element = "element"
+            
+        # Формируем путь для сохранения результатов
+        if self.transition:
+            # Если переход известен, используем его в пути
+            result_dir = os.path.join("Resoult", compound, element, self.transition)
+            transition_str = self.transition
+        else:
+            # Если переход не известен, сохраняем просто по compound/element
+            result_dir = os.path.join("Resoult", compound, element)
+            transition_str = "NoTransition"
+        
+        # Создаем директорию, если она не существует
+        os.makedirs(result_dir, exist_ok=True)
+        
+        # Формируем имя файла с соединением, элементом, переходом и датой
+        current_date = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
+        file_name = f"{compound}_{element}_{transition_str}_{current_date}.dat"
+        file_path = os.path.join(result_dir, file_name)
+        
+        try:
+            # Сохраняем данные в файл
+            with open(file_path, 'w') as file:
+                for x, y in zip(self.cor_X_File_1D, self.cor_Y_File_1D):
+                    file.write(f"{x} {y}\n")
+            
+            # Создаем директорию для логов
+            if self.transition:
+                logs_dir = os.path.join("Logs", compound, element, self.transition)
+            else:
+                logs_dir = os.path.join("Logs", compound, element)
+                
+            os.makedirs(logs_dir, exist_ok=True)
+            
+            # Создаем файл логов
+            log_file_path = os.path.join(logs_dir, f"{current_date}.log")
+            
+            # Записываем информацию в лог
+            with open(log_file_path, 'w') as log_file:
+                log_file.write(f"Время сохранения: {QDateTime.currentDateTime().toString('yyyy-MM-dd HH:mm:ss')}\n")
+                log_file.write(f"Соединение: {compound}\n")
+                log_file.write(f"Элемент: {element}\n")
+                log_file.write(f"Переход: {self.transition if self.transition else 'Не указан'}\n")
+                log_file.write(f"Количество файлов: {len(self.data_files)}\n")
+                log_file.write(f"Суммирование по точкам: {self.ui.sum_spinBox.value()}\n")
+                
+                # Информация о калибровке
+                log_file.write(f"Калибровка: {'Да' if self.calibrated else 'Нет'}\n")
+                if self.calibrated:
+                    log_file.write(f"Энергия 1: {self.ui.E_one_doubleSpinBox.value()}\n")
+                    log_file.write(f"Энергия 2: {self.ui.E_two_doubleSpinBox.value()}\n")
+                    log_file.write(f"Номер пика 1: {self.ui.N_one_doubleSpinBox.value()}\n")
+                    log_file.write(f"Номер пика 2: {self.ui.N_two_doubleSpinBox.value()}\n")
+                
+                # Информация о сглаживании
+                log_file.write(f"Сглаживание: {'Да' if self.smoothed else 'Нет'}\n")
+                if self.smoothed:
+                    log_file.write(f"Количество точек сглаживания: {self.count_smoothed}\n")
+            
+            self.console(f"Данные сохранены в {file_path}")
+            self.console(f"Лог сохранен в {log_file_path}")
+            
+        except Exception as e:
+            self.console(f"Ошибка при сохранении: {str(e)}", True)
+
     #  Выводит иформацию в консоль
     def console(self, text: str = "", error = False):
         current_time = QTime.currentTime().toString("HH:mm:ss")  # Получаем текущее время в формате ЧЧ:ММ:СС
@@ -235,6 +327,9 @@ class window(QMainWindow):
                 self.ui.CoordinatTable_tableWidget.setItem(i, 1, QtWidgets.QTableWidgetItem(str(y[i])))  # Y координаты
 
     def sum_pushButton(self):
+        self.calibrated = False
+        self.smoothed = False
+        self.count_smoothed = 0
         # Получаем значение из spinBox
         sum_points = self.ui.sum_spinBox.value()
         
@@ -264,6 +359,10 @@ class window(QMainWindow):
                 total_y += summed_y
 
         self.cor_Y_File_1D = total_y
+        # Сохраняем оригинальные данные
+        self.original_X = self.cor_X_File_1D.copy()
+        self.original_Y = self.cor_Y_File_1D.copy()
+        
         # Теперь можно построить график для суммированных данных
         self.plotSummedData(total_x, total_y)
 
@@ -284,10 +383,16 @@ class window(QMainWindow):
         self.plot_widget_resoult.clear()
         self.plot_widget_resoult.addItem(self.text_item_result)  # Возвращаем текстовый элемент
 
-        # Строим график для суммированных данных с точками
-        self.plot_widget_resoult.plot(x, y, pen='g', name='Суммированные данные', 
-                                    symbol='o', symbolSize=3, symbolBrush='g')
+        # Если калибровка выполнена, округляем значения X больше 1 до 3 знаков после запятой
+        if self.calibrated:
+            x_display = [round(val, 3) if abs(val) > 1 else val for val in x]
+        else:
+            x_display = x
 
+        # Строим график для суммированных данных с точками
+        self.plot_widget_resoult.plot(x_display, y, pen='g', name='Суммированные данные', 
+                                    symbol='o', symbolSize=3, symbolBrush='g')
+    
     # Функции для обработки движения мыши и отображения координат
     def mouse_moved_result(self, pos):
         self.show_point_coordinates(self.plot_widget_resoult, pos, self.text_item_result)       
@@ -452,11 +557,13 @@ class window(QMainWindow):
                         # Для Ka используем первые два числа, умноженные на 1000
                         self.ui.E_one_doubleSpinBox.setValue(energy_values[0] * 1000)
                         self.ui.E_two_doubleSpinBox.setValue(energy_values[1] * 1000)
+                        self.transition = "Ka"
                         self.console(f"Установлены значения для линии Ka: {energy_values[0] * 1000}, {energy_values[1] * 1000}")
                     elif clicked_button == kb_button:
                         # Для Kb используем 4-е и 5-е числа, умноженные на 1000
                         self.ui.E_one_doubleSpinBox.setValue(energy_values[3] * 1000)
                         self.ui.E_two_doubleSpinBox.setValue(energy_values[4] * 1000)
+                        self.transition = "Kb"
                         self.console(f"Установлены значения для линии Kb: {energy_values[3] * 1000}, {energy_values[4] * 1000}")
                     else:
                         # Пользователь отменил операцию
@@ -480,9 +587,41 @@ class window(QMainWindow):
             self.console("Ошибка: Все значения должны быть ненулевыми.", True)
             return
         
+        # Если переход не был выбран через поиск, спрашиваем о нем
+        if self.transition is None:
+            # Создаем диалоговое окно для выбора линии
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setWindowTitle("Выбор линии")
+            msg_box.setText("Какая линия?")
+            
+            # Сохраняем оригинальные X перед калибровкой, если еще не сохранены
+            if not self.original_X:
+                self.original_X = self.cor_X_File_1D.copy()
+            
+            # Добавляем кнопки Ka и Kb
+            ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+            
+            # Показываем диалоговое окно и ждем ответа
+            msg_box.exec()
+            
+            clicked_button = msg_box.clickedButton()
+            
+            if clicked_button == ka_button:
+                self.transition = "Ka"
+                self.console("Выбрана линия Ka")
+            elif clicked_button == kb_button:
+                self.transition = "Kb"
+                self.console("Выбрана линия Kb")
+            elif clicked_button == cancel_button:
+                self.console("Операция отменена")
+                return
+        
         # Калибровка графика
         [self.cor_X_File_1D, energy_step] = self.convert_to_energy(self.cor_X_File_1D, E_one, E_two, N_one, N_two)
         
+        self.calibrated = True
         # Обновляем график
         self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
         self.console(f'График откалиброван, шаг по энергии: {energy_step}', False)
@@ -499,10 +638,158 @@ class window(QMainWindow):
         calibrated_values = [first_energy]  # Начинаем с первой энергии
         for i in range(1, len(cor_X_File_1D)):
             energy = first_energy + energy_step * i  # Прибавляем шаг для каждой следующей точки
+            # Округляем значения больше 1 до 3 знаков после запятой
+            if abs(energy) > 1:
+                energy = round(energy, 3)
             calibrated_values.append(energy)
         
         return [calibrated_values, energy_step]
 
+    def smooth_pushButton(self):
+        # Проверяем, есть ли данные для сглаживания
+        if len(self.cor_X_File_1D) == 0 or len(self.cor_Y_File_1D) == 0:
+            self.console("Нет данных для сглаживания", True)
+            return
+            
+        # Получаем количество точек для сглаживания
+        points_count = self.ui.smooth_spinBox.value()
+        
+        # Проверяем, чтобы количество точек не было слишком большим
+        if points_count >= len(self.cor_Y_File_1D):
+            self.console(f"Количество точек для сглаживания слишком большое. Максимальное значение: {len(self.cor_Y_File_1D) - 1}", True)
+            return
+        
+        # Количество точек должно быть нечетным для Savitzky-Golay
+        if points_count % 2 == 0:
+            points_count += 1
+            self.ui.smooth_spinBox.setValue(points_count)
+            self.console(f"Количество точек увеличено до {points_count} (должно быть нечетным)", False)
+        
+        # Показываем диалоговое окно для выбора метода сглаживания
+        msg_box = QtWidgets.QMessageBox()
+        msg_box.setWindowTitle("Выбор метода сглаживания")
+        msg_box.setText("Выберите метод сглаживания:")
+        
+        # Добавляем кнопки для выбора метода
+        adjacent_button = msg_box.addButton("Adjacent-Averaging", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+        savgol_button = msg_box.addButton("Savitzky-Golay", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+        cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+        
+        # Показываем диалоговое окно и ждем ответа
+        msg_box.exec()
+        
+        clicked_button = msg_box.clickedButton()
+        
+        # Сохраняем оригинальные данные Y перед первым сглаживанием
+        if not self.smoothed and self.original_Y.size == 0:
+            self.original_Y = self.cor_Y_File_1D.copy()
+            
+        try:
+            if clicked_button == adjacent_button:
+                # Применяем метод Adjacent-Averaging
+                smoothed_data = self.adjacent_averaging(self.cor_Y_File_1D, points_count)
+                self.cor_Y_File_1D = smoothed_data
+                self.smoothed = True
+                self.count_smoothed = points_count
+                self.console(f"Применено сглаживание методом Adjacent-Averaging по {points_count} точкам")
+                
+            elif clicked_button == savgol_button:
+                # Для Savitzky-Golay нужен дополнительный параметр - порядок полинома
+                order, ok = QtWidgets.QInputDialog.getInt(
+                    self, "Порядок полинома", 
+                    "Введите порядок полинома (должен быть < количества точек):",
+                    min=1, max=points_count-1, step=1, value=3
+                )
+                
+                if ok:
+                    # Проверяем, чтобы порядок был меньше количества точек
+                    if order >= points_count:
+                        order = points_count - 1
+                        self.console(f"Порядок полинома уменьшен до {order} (должен быть < количества точек)", False)
+                    
+
+                    try:
+                        # Применяем фильтр Savitzky-Golay
+                        smoothed_data = savgol_filter(self.cor_Y_File_1D, points_count, order)
+                        self.cor_Y_File_1D = smoothed_data
+                        self.smoothed = True
+                        self.count_smoothed = points_count
+                        self.console(f"Применено сглаживание методом Savitzky-Golay по {points_count} точкам с порядком {order}")
+                    except ImportError:
+                        self.console(f'Ошибка: {e}', True)
+                        return
+                else:
+                    # Пользователь отменил ввод порядка
+                    self.console("Операция сглаживания отменена")
+                    return
+                    
+            elif clicked_button == cancel_button:
+                # Пользователь отменил операцию
+                self.console("Операция сглаживания отменена")
+                return
+                
+            # Обновляем график
+            self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+            
+        except Exception as e:
+            self.console(f"Ошибка при сглаживании: {str(e)}", True)
+
+    def adjacent_averaging(self, data, points_count):
+        """Метод сглаживания Adjacent-Averaging (скользящее среднее)"""
+        result = np.zeros_like(data)
+        n = len(data)
+        half_window = points_count // 2
+        
+        # Обрабатываем граничные точки (начало массива)
+        for i in range(half_window):
+            result[i] = np.mean(data[:i + half_window + 1])
+            
+        # Обрабатываем основную часть массива
+        for i in range(half_window, n - half_window):
+            result[i] = np.mean(data[i - half_window:i + half_window + 1])
+            
+        # Обрабатываем граничные точки (конец массива)
+        for i in range(n - half_window, n):
+            result[i] = np.mean(data[i - half_window:])
+            
+        return result
+
+    def cancel_calibrate_pushButton(self):
+        """Отмена калибровки"""
+        if not self.calibrated:
+            self.console("Калибровка не была применена", True)
+            return
+            
+        if self.original_X.size == 0:
+            self.console("Невозможно отменить калибровку: исходных данных нет", True)
+            return
+            
+        # Восстанавливаем оригинальные значения X
+        self.cor_X_File_1D = self.original_X.copy()
+        self.calibrated = False
+        
+        # Обновляем график
+        self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+        self.console("Калибровка отменена")
+
+    def cancel_smooth_pushButton(self):
+        """Отмена сглаживания"""
+        if not self.smoothed:
+            self.console("Сглаживание не было применено", True)
+            return
+            
+        if self.original_Y.size == 0:
+            self.console("Невозможно отменить сглаживание: исходных данных нет", True)
+            return
+            
+        # Восстанавливаем оригинальные значения Y
+        self.cor_Y_File_1D = self.original_Y.copy()
+        self.smoothed = False
+        self.count_smoothed = 0
+        
+        # Обновляем график
+        self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+        self.console("Сглаживание отменено")
 
 app = QtWidgets.QApplication([])
 mainWin = window()

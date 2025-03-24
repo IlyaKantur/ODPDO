@@ -564,7 +564,7 @@
          <property name="maximumSize">
           <size>
            <width>150</width>
-           <height>1000</height>
+           <height>140</height>
           </size>
          </property>
          <property name="frameShape">
@@ -687,7 +687,7 @@
          <property name="maximumSize">
           <size>
            <width>150</width>
-           <height>16777215</height>
+           <height>100</height>
           </size>
          </property>
          <property name="layoutDirection">
@@ -742,7 +742,7 @@
             <property name="minimumSize">
              <size>
               <width>100</width>
-              <height>0</height>
+              <height>25</height>
              </size>
             </property>
             <property name="layoutDirection">
@@ -769,22 +769,12 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="0" colspan="3">
-           <widget class="QLabel" name="label_2">
-            <property name="text">
-             <string>Обработка</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignmentFlag::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
           <item row="1" column="0">
            <widget class="QCheckBox" name="Observ_checkBox">
             <property name="minimumSize">
              <size>
               <width>100</width>
-              <height>0</height>
+              <height>25</height>
              </size>
             </property>
             <property name="layoutDirection">
@@ -820,6 +810,16 @@
             </property>
             <property name="minimum">
              <number>1</number>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0" colspan="3">
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Обработка</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignCenter</set>
             </property>
            </widget>
           </item>
@@ -862,6 +862,26 @@
           <property name="spacing">
            <number>3</number>
           </property>
+          <item row="0" column="0" colspan="4">
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>Калибровка</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1" colspan="2">
+           <widget class="QLabel" name="label_7">
+            <property name="text">
+             <string>Энергия</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
           <item row="3" column="0">
            <widget class="QLabel" name="label_5">
             <property name="maximumSize">
@@ -878,16 +898,6 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="0" colspan="4">
-           <widget class="QLabel" name="label_4">
-            <property name="text">
-             <string>Калибровка</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignmentFlag::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
           <item row="2" column="3">
            <widget class="QLabel" name="label_8">
             <property name="text">
@@ -895,6 +905,22 @@
             </property>
             <property name="alignment">
              <set>Qt::AlignmentFlag::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <widget class="QDoubleSpinBox" name="E_two_doubleSpinBox">
+            <property name="minimumSize">
+             <size>
+              <width>65</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="buttonSymbols">
+             <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+            </property>
+            <property name="maximum">
+             <double>1000000.000000000000000</double>
             </property>
            </widget>
           </item>
@@ -914,6 +940,25 @@
             </property>
            </widget>
           </item>
+          <item row="1" column="1" colspan="3">
+           <widget class="QPushButton" name="Calibration_pushButton">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Калибровка</string>
+            </property>
+           </widget>
+          </item>
           <item row="3" column="3">
            <widget class="QDoubleSpinBox" name="N_one_doubleSpinBox">
             <property name="minimumSize">
@@ -927,25 +972,6 @@
             </property>
             <property name="maximum">
              <double>1000000.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QPushButton" name="search_pushButton">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="maximumSize">
-             <size>
-              <width>20</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>P</string>
             </property>
            </widget>
           </item>
@@ -987,34 +1013,8 @@
             </property>
            </widget>
           </item>
-          <item row="4" column="1">
-           <widget class="QDoubleSpinBox" name="E_two_doubleSpinBox">
-            <property name="minimumSize">
-             <size>
-              <width>65</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="buttonSymbols">
-             <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
-            </property>
-            <property name="maximum">
-             <double>1000000.000000000000000</double>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1" colspan="2">
-           <widget class="QLabel" name="label_7">
-            <property name="text">
-             <string>Энергия</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignmentFlag::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1" colspan="3">
-           <widget class="QPushButton" name="Calibration_pushButton">
+          <item row="1" column="0">
+           <widget class="QPushButton" name="search_pushButton">
             <property name="minimumSize">
              <size>
               <width>0</width>
@@ -1023,12 +1023,19 @@
             </property>
             <property name="maximumSize">
              <size>
-              <width>16777215</width>
+              <width>20</width>
               <height>25</height>
              </size>
             </property>
             <property name="text">
-             <string>Калибровка</string>
+             <string>P</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0" colspan="4">
+           <widget class="QPushButton" name="CancelCalibrate_pushButton">
+            <property name="text">
+             <string>Отменить калибровку</string>
             </property>
            </widget>
           </item>
@@ -1105,29 +1112,13 @@
           <property name="spacing">
            <number>3</number>
           </property>
-          <item row="1" column="0">
-           <widget class="QLabel" name="label_11">
+          <item row="0" column="0" colspan="2">
+           <widget class="QLabel" name="label_10">
             <property name="text">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Кал. точек:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Сглаживание</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignmentFlag::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QSpinBox" name="spinBox">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>25</height>
-             </size>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
-            </property>
-            <property name="buttonSymbols">
-             <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
             </property>
            </widget>
           </item>
@@ -1144,13 +1135,39 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="0" colspan="2">
-           <widget class="QLabel" name="label_10">
+          <item row="1" column="1">
+           <widget class="QSpinBox" name="smooth_spinBox">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>25</height>
+             </size>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+            </property>
+            <property name="buttonSymbols">
+             <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_11">
             <property name="text">
-             <string>Сглаживание</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Кал. точек:&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignmentFlag::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0" colspan="2">
+           <widget class="QPushButton" name="CancelSmooth_pushButton">
+            <property name="text">
+             <string>Отменить сглаживание</string>
             </property>
            </widget>
           </item>
