@@ -1,7 +1,7 @@
 from UI import Ui_MainWindow
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (QMainWindow)
-from PyQt6.QtCore import QTime, QDateTime
+from PyQt6.QtCore import QTime, QDateTime, QTimer
 import sys
 import os
 import pyqtgraph as pg
@@ -89,6 +89,21 @@ class window(QMainWindow):
 
         # Подключаем обработчик события для нажатия на ячейку таблицы
         self.ui.table_tableWidget.cellClicked.connect(self.on_table_cell_clicked)
+
+        # Добавляем таймер для режима наблюдения
+        self.observation_timer = QTimer()
+        self.observation_timer.timeout.connect(self.check_new_files)
+        self.observation_folder = ""  # Папка для наблюдения
+        self.processed_files = set()  # Множество уже обработанных файлов
+
+        # Добавляем обработчик изменения состояния чекбокса наблюдения
+        self.ui.Observ_checkBox.stateChanged.connect(self.observation_checkbox_changed)
+
+        # Добавляем флаг для отслеживания состояния паузы
+        self.observation_paused = False
+
+        # Добавляем переменную для хранения результатов FWHM
+        self.fwhm_results = []
 
         self.console("Программа запущена", False)
 
@@ -214,83 +229,50 @@ class window(QMainWindow):
             return None
 
     def save(self):
-        # Проверяем, есть ли данные для сохранения
-        if len(self.cor_X_File_1D) == 0 or len(self.cor_Y_File_1D) == 0:
-            self.console("Нет данных для сохранения", True)
-            return
-            
-        # Получаем значения из полей
-        compound = self.ui.Compound_lineEdit.text().strip()
-        element = self.ui.Element_lineEdit.text().strip()
-        
-        # Если поля пустые, используем значения по умолчанию
-        if not compound:
-            compound = "NoCompound"
-        if not element:
-            element = "element"
-            
-        # Формируем путь для сохранения результатов
-        if self.transition:
-            # Если переход известен, используем его в пути
-            result_dir = os.path.join("Resoult", compound, element, self.transition)
-            transition_str = self.transition
-        else:
-            # Если переход не известен, сохраняем просто по compound/element
-            result_dir = os.path.join("Resoult", compound, element)
-            transition_str = "NoTransition"
-        
-        # Создаем директорию, если она не существует
-        os.makedirs(result_dir, exist_ok=True)
-        
-        # Формируем имя файла с соединением, элементом, переходом и датой
-        current_date = QDateTime.currentDateTime().toString("yyyy-MM-dd_HH-mm-ss")
-        file_name = f"{compound}_{element}_{transition_str}_{current_date}.dat"
-        file_path = os.path.join(result_dir, file_name)
-        
+        """Сохранение результатов"""
         try:
-            # Сохраняем данные в файл
-            with open(file_path, 'w') as file:
-                for x, y in zip(self.cor_X_File_1D, self.cor_Y_File_1D):
-                    file.write(f"{x} {y}\n")
+            # Получаем путь для сохранения
+            file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Сохранить файл", "", "Text Files (*.txt)")
             
-            # Создаем директорию для логов
-            if self.transition:
-                logs_dir = os.path.join("Logs", compound, element, self.transition)
-            else:
-                logs_dir = os.path.join("Logs", compound, element)
+            if not file_path:
+                return
                 
-            os.makedirs(logs_dir, exist_ok=True)
-            
-            # Создаем файл логов
-            log_file_path = os.path.join(logs_dir, f"{current_date}.log")
-            
-            # Записываем информацию в лог
-            with open(log_file_path, 'w') as log_file:
-                log_file.write(f"Время сохранения: {QDateTime.currentDateTime().toString('yyyy-MM-dd HH:mm:ss')}\n")
-                log_file.write(f"Соединение: {compound}\n")
-                log_file.write(f"Элемент: {element}\n")
-                log_file.write(f"Переход: {self.transition if self.transition else 'Не указан'}\n")
-                log_file.write(f"Количество файлов: {len(self.data_files)}\n")
-                log_file.write(f"Суммирование по точкам: {self.ui.sum_spinBox.value()}\n")
+            with open(file_path, 'w', encoding='utf-8') as file:
+                # Записываем информацию о соединении и элементе
+                compound = self.ui.Compound_lineEdit.text()
+                element = self.ui.Element_lineEdit.text()
+                file.write(f"Соединение: {compound}\n")
+                file.write(f"Элемент: {element}\n\n")
                 
-                # Информация о калибровке
-                log_file.write(f"Калибровка: {'Да' if self.calibrated else 'Нет'}\n")
+                # Записываем информацию о калибровке
                 if self.calibrated:
-                    log_file.write(f"Энергия 1: {self.ui.E_one_doubleSpinBox.value()}\n")
-                    log_file.write(f"Энергия 2: {self.ui.E_two_doubleSpinBox.value()}\n")
-                    log_file.write(f"Номер пика 1: {self.ui.N_one_doubleSpinBox.value()}\n")
-                    log_file.write(f"Номер пика 2: {self.ui.N_two_doubleSpinBox.value()}\n")
+                    file.write(f"Калибровка: {self.transition}\n")
+                    file.write(f"E1 = {self.ui.E_one_doubleSpinBox.value():.3f} эВ\n")
+                    file.write(f"E2 = {self.ui.E_two_doubleSpinBox.value():.3f} эВ\n")
+                    file.write(f"N1 = {self.ui.N_one_doubleSpinBox.value():.0f}\n")
+                    file.write(f"N2 = {self.ui.N_two_doubleSpinBox.value():.0f}\n\n")
                 
-                # Информация о сглаживании
-                log_file.write(f"Сглаживание: {'Да' if self.smoothed else 'Нет'}\n")
+                # Записываем информацию о сглаживании
                 if self.smoothed:
-                    log_file.write(f"Количество точек сглаживания: {self.count_smoothed}\n")
-            
-            self.console(f"Данные сохранены в {file_path}")
-            self.console(f"Лог сохранен в {log_file_path}")
+                    file.write(f"Сглаживание: {self.count_smoothed} точек\n\n")
+                
+                # Записываем результаты FWHM, если они есть
+                if self.fwhm_results:
+                    file.write("Результаты расчета FWHM:\n")
+                    for result in self.fwhm_results:
+                        file.write(f"{result}\n")
+                    file.write("\n")
+                
+                # Записываем данные
+                file.write("Данные:\n")
+                file.write("X\tY\n")
+                for x, y in zip(self.cor_X_File_1D, self.cor_Y_File_1D):
+                    file.write(f"{x}\t{y}\n")
+                
+            self.console(f"Файл сохранен: {file_path}")
             
         except Exception as e:
-            self.console(f"Ошибка при сохранении: {str(e)}", True)
+            self.console(f"Ошибка при сохранении файла: {str(e)}", True)
 
     #  Выводит иформацию в консоль
     def console(self, text: str = "", error = False):
@@ -330,9 +312,30 @@ class window(QMainWindow):
                 self.ui.CoordinatTable_tableWidget.setItem(i, 1, QtWidgets.QTableWidgetItem(str(y[i])))  # Y координаты
 
     def sum_pushButton(self):
+        """Обработчик нажатия кнопки суммирования"""
+        # Если наблюдение активно, ставим на паузу
+        if self.observation_timer.isActive():
+            self.pause_observation()
+            return
+        # Если на паузе, возобновляем
+        elif self.observation_paused:
+            self.resume_observation()
+            return
+            
         self.calibrated = False
         self.smoothed = False
         self.count_smoothed = 0
+        
+        # Проверяем режим наблюдения
+        if self.ui.Observ_checkBox.isChecked():
+            self.start_observation_mode()
+        else:
+            self.normal_sum_mode()
+
+    def normal_sum_mode(self):
+        """Обычный режим суммирования"""
+        # Убеждаемся, что кнопка имеет стандартный цвет
+        self.ui.sum_pushButton.setStyleSheet("")
         # Получаем значение из spinBox
         sum_points = self.ui.sum_spinBox.value()
         
@@ -340,7 +343,7 @@ class window(QMainWindow):
         if sum_points <= 0:
             self.console("Количество точек для суммирования должно быть больше 0", True)
             return
-
+            
         # Создаем массив для хранения суммированных данных
         total_y = None
         total_x = None
@@ -372,7 +375,30 @@ class window(QMainWindow):
         text = f'Просуммировано {len(self.data_files)} файлов'
         self.console(text, False)
 
+    def start_observation_mode(self):
+        """Запуск режима наблюдения"""
+        # Запрашиваем папку для наблюдения
+        folder_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Выберите папку для наблюдения")
+        if not folder_path:
+            self.console("Папка для наблюдения не выбрана", True)
+            return
+            
+        self.observation_folder = folder_path
+        # Получаем период обновления в минутах и переводим в миллисекунды
+        update_period = self.ui.time_spinBox.value() * 60 * 1000
+        
+        if update_period <= 0:
+            self.console("Неверный период обновления", True)
+            return
+            
+        # Запускаем наблюдение
+        self.processed_files = set()  # Очищаем список обработанных файлов
+        self.start_observation(update_period)
+        # Выполняем первичное суммирование
+        self.process_files()
+
     def sumData(self, y, sum_points):
+        """Суммирование данных с использованием скользящего окна"""
         # Суммируем данные с использованием скользящего окна
         summed_y = []
         for i in range(0, len(y), sum_points):
@@ -380,6 +406,114 @@ class window(QMainWindow):
             window_sum = sum(y[i:i + sum_points])
             summed_y.append(window_sum)
         return summed_y
+
+    def start_observation(self, period):
+        """Запуск режима наблюдения"""
+        self.observation_timer.start(period)
+        # Меняем цвет кнопки на зеленый
+        self.ui.sum_pushButton.setStyleSheet("background-color: #90EE90;")  # Светло-зеленый цвет
+        self.console(f"Режим наблюдения запущен. Период проверки: {period/60000:.1f} мин")
+        
+    def stop_observation(self):
+        """Остановка режима наблюдения"""
+        self.observation_timer.stop()
+        self.observation_folder = ""
+        self.processed_files.clear()
+        self.observation_paused = False
+        # Возвращаем стандартный цвет кнопки
+        self.ui.sum_pushButton.setStyleSheet("")
+        self.console("Режим наблюдения остановлен")
+        
+    def check_new_files(self):
+        """Проверка новых файлов в папке наблюдения"""
+        try:
+            # Получаем список всех .dat и .txt файлов в папке
+            valid_extensions = ('.dat', '.txt')
+            current_files = set(
+                os.path.join(self.observation_folder, f) 
+                for f in os.listdir(self.observation_folder) 
+                if f.endswith(valid_extensions)
+            )
+            
+            # Находим новые файлы
+            new_files = current_files - self.processed_files
+            
+            if new_files:
+                self.console(f"Найдено новых файлов: {len(new_files)}")
+                
+                # Сохраняем текущие данные
+                current_x = self.cor_X_File_1D.copy() if len(self.cor_X_File_1D) > 0 else None
+                current_y = self.cor_Y_File_1D.copy() if len(self.cor_Y_File_1D) > 0 else None
+                
+                # Загружаем и обрабатываем новые файлы
+                for file_path in new_files:
+                    data = self.readDataFromFile(file_path)
+                    if data is not None:
+                        self.data_files.append(data)
+                        self.processed_files.add(file_path)
+                
+                # Выполняем суммирование с учетом новых файлов
+                self.process_files(current_x, current_y)
+                
+        except Exception as e:
+            self.console(f"Ошибка при проверке новых файлов: {str(e)}", True)
+            self.stop_observation()
+
+    def process_files(self, prev_x=None, prev_y=None):
+        """Обработка файлов с учетом предыдущих данных"""
+        try:
+            if not self.data_files:
+                self.console("Нет данных для суммирования", True)
+                return
+
+            # Получаем количество точек для суммирования
+            sum_points = self.ui.sum_spinBox.value()
+            
+            if sum_points <= 0:
+                self.console("Неверное количество точек для суммирования", True)
+                return
+
+            # Создаем массивы для хранения суммированных данных
+            total_y = None
+            total_x = None
+
+            # Суммируем данные
+            for data in self.data_files:
+                if data is not None:
+                    x, y = data
+                    # Суммируем по указанному количеству точек
+                    summed_y = self.sumData(y, sum_points)
+
+                    # Если это первый файл, инициализируем total_y
+                    if total_y is None:
+                        total_y = np.zeros_like(summed_y)
+                        total_x = np.arange(len(summed_y))
+
+                    # Добавляем суммированные значения к total_y
+                    total_y += summed_y
+
+            if prev_x is not None and prev_y is not None:
+                # Используем предыдущие данные
+                self.cor_X_File_1D = prev_x
+                self.cor_Y_File_1D = total_y
+            else:
+                # Используем новые данные
+                self.cor_X_File_1D = total_x
+                self.cor_Y_File_1D = total_y
+
+            # Сохраняем оригинальные данные при первом суммировании
+            if not hasattr(self, 'original_X') or len(self.original_X) == 0:
+                self.original_X = self.cor_X_File_1D.copy()
+                self.original_Y = self.cor_Y_File_1D.copy()
+
+            # Обновляем график
+            self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+            
+            text = f'Просуммировано {len(self.data_files)} файлов'
+            self.console(text, False)
+            
+        except Exception as e:
+            self.console(f"Ошибка при обработке файлов: {str(e)}", True)
 
     def plotSummedData(self, x, y):
         # Очищаем предыдущие графики
@@ -917,10 +1051,36 @@ class window(QMainWindow):
             else:
                 message = f"FWHM{' ' + peak_name if peak_name else ''} = {fwhm:.3f} при X = {peak_x:.0f}"
 
+            # Сохраняем результат
+            self.fwhm_results.append(message)
+            
             self.console(message)
 
         except Exception as e:
             self.console(f"Ошибка при расчете FWHM: {str(e)}", True)
+
+    def observation_checkbox_changed(self, state):
+        """Обработчик изменения состояния чекбокса наблюдения"""
+        if not state:  # Если чекбокс выключен
+            self.stop_observation()  # Полностью останавливаем наблюдение
+
+    def pause_observation(self):
+        """Поставить наблюдение на паузу"""
+        self.observation_timer.stop()
+        self.observation_paused = True
+        # Меняем цвет кнопки на желтый
+        self.ui.sum_pushButton.setStyleSheet("background-color: #FFD700;")  # Gold color
+        self.console("Режим наблюдения приостановлен")
+
+    def resume_observation(self):
+        """Возобновить наблюдение"""
+        # Получаем текущий период обновления
+        update_period = self.ui.time_spinBox.value() * 60 * 1000
+        self.observation_timer.start(update_period)
+        self.observation_paused = False
+        # Возвращаем зеленый цвет
+        self.ui.sum_pushButton.setStyleSheet("background-color: #90EE90;")
+        self.console("Режим наблюдения возобновлен")
 
 app = QtWidgets.QApplication([])
 mainWin = window()
