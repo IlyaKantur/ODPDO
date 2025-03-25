@@ -8,6 +8,8 @@ import pyqtgraph as pg
 import numpy as np
 import scipy as scipy
 from scipy.signal import savgol_filter
+from scipy.signal import find_peaks
+import scipy.interpolate as interpolate
 
 class window(QMainWindow):
     def __init__(self):
@@ -62,6 +64,7 @@ class window(QMainWindow):
         self.ui.CancelCalibrate_pushButton.clicked.connect(self.cancel_calibrate_pushButton)
         self.ui.Smooth_pushButton.clicked.connect(self.smooth_pushButton)
         self.ui.CancelSmooth_pushButton.clicked.connect(self.cancel_smooth_pushButton)
+        self.ui.Calculation_pushButton.clicked.connect(self.calculation_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -790,6 +793,134 @@ class window(QMainWindow):
         # Обновляем график
         self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
         self.console("Сглаживание отменено")
+
+    def calculation_pushButton(self):
+        """Расчет FWHM для пиков"""
+        if not self.calibrated:
+            self.console("Необходимо сначала выполнить калибровку", True)
+            return
+
+        if len(self.cor_X_File_1D) == 0 or len(self.cor_Y_File_1D) == 0:
+            self.console("Нет данных для расчета", True)
+            return
+
+        # Получаем значения энергий из полей
+        E_one = self.ui.E_one_doubleSpinBox.value()
+        E_two = self.ui.E_two_doubleSpinBox.value()
+        N_one = self.ui.N_one_doubleSpinBox.value()
+        N_two = self.ui.N_two_doubleSpinBox.value()
+
+        if E_one == 0 or E_two == 0:
+            self.console("Не заданы значения энергий", True)
+            return
+
+        # Вычисляем шаг по энергии
+        energy_step = abs((E_two - E_one) / (N_two - N_one))
+        # Устанавливаем окно поиска как удвоенный шаг
+        search_window = energy_step * 2
+
+        # Находим пики выше 40% от максимума
+        peaks, _ = find_peaks(self.cor_Y_File_1D, height=np.max(self.cor_Y_File_1D)*0.4)
+        
+        if len(peaks) == 0:
+            self.console("Пики не найдены", True)
+            return
+
+        def find_max_peak_near_energy(energy, peaks, window):
+            """Находит максимальный пик в окрестности заданной энергии"""
+            # Фильтруем пики, которые находятся в пределах окна от заданной энергии
+            nearby_peaks = [p for p in peaks if abs(self.cor_X_File_1D[p] - energy) <= window]
+            if not nearby_peaks:
+                return None
+            # Возвращаем индекс пика с максимальной амплитудой
+            return max(nearby_peaks, key=lambda x: self.cor_Y_File_1D[x])
+
+        if self.transition == "Ka":
+            # Для Ka ищем оба пика
+            if len(peaks) < 2:
+                self.console("Не найдено достаточное количество пиков для Ka", True)
+                return
+
+            # Находим максимальные пики около заданных энергий
+            ka2_peak_idx = find_max_peak_near_energy(E_one, peaks, search_window)
+            ka1_peak_idx = find_max_peak_near_energy(E_two, peaks, search_window)
+
+            if ka2_peak_idx is None or ka1_peak_idx is None:
+                self.console("Не удалось найти пики вблизи заданных энергий", True)
+                return
+
+            # Проверяем, что найденные пики достаточно близки к заданным энергиям
+            ka2_energy = self.cor_X_File_1D[ka2_peak_idx]
+            ka1_energy = self.cor_X_File_1D[ka1_peak_idx]
+
+            if abs(ka2_energy - E_one) > search_window or abs(ka1_energy - E_two) > search_window:
+                self.console("Предупреждение: найденные пики значительно отличаются от заданных энергий", True)
+
+            # Вычисляем FWHM для обоих пиков
+            self.calculate_fwhm(ka2_peak_idx, "Ka₂")
+            self.calculate_fwhm(ka1_peak_idx, "Ka₁")
+        else:
+            # Для Kb или если переход не указан, ищем один пик
+            peak_idx = find_max_peak_near_energy(E_one, peaks, search_window)
+            
+            if peak_idx is None:
+                self.console("Не удалось найти пик вблизи заданной энергии", True)
+                return
+
+            peak_energy = self.cor_X_File_1D[peak_idx]
+
+            if abs(peak_energy - E_one) > search_window:
+                self.console("Предупреждение: найденный пик значительно отличается от заданной энергии", True)
+
+            # Вычисляем FWHM для найденного пика
+            self.calculate_fwhm(peak_idx, "Kb" if self.transition == "Kb" else "")
+
+    def calculate_fwhm(self, peak_idx, peak_name=""):
+        """Вычисление FWHM для конкретного пика"""
+        try:
+            peak_height = self.cor_Y_File_1D[peak_idx]
+            half_max = peak_height / 2
+
+            # Ищем точки пересечения слева от пика
+            left_idx = peak_idx
+            while left_idx > 0 and self.cor_Y_File_1D[left_idx - 1] > half_max:
+                left_idx -= 1
+
+            # Интерполяция для точного нахождения левой точки
+            if left_idx > 0:
+                x_left = np.array([self.cor_X_File_1D[left_idx - 1], self.cor_X_File_1D[left_idx]])
+                y_left = np.array([self.cor_Y_File_1D[left_idx - 1], self.cor_Y_File_1D[left_idx]])
+                interp_left = np.interp(half_max, y_left, x_left)
+            else:
+                interp_left = self.cor_X_File_1D[left_idx]
+
+            # Ищем точки пересечения справа от пика
+            right_idx = peak_idx
+            while right_idx < len(self.cor_Y_File_1D) - 1 and self.cor_Y_File_1D[right_idx + 1] > half_max:
+                right_idx += 1
+
+            # Интерполяция для точного нахождения правой точки
+            if right_idx < len(self.cor_Y_File_1D) - 1:
+                x_right = np.array([self.cor_X_File_1D[right_idx], self.cor_X_File_1D[right_idx + 1]])
+                y_right = np.array([self.cor_Y_File_1D[right_idx], self.cor_Y_File_1D[right_idx + 1]])
+                interp_right = np.interp(half_max, y_right, x_right)
+            else:
+                interp_right = self.cor_X_File_1D[right_idx]
+
+            # Вычисляем FWHM
+            fwhm = abs(interp_right - interp_left)
+
+            # Формируем сообщение
+            peak_x = self.cor_X_File_1D[peak_idx]
+            if self.calibrated:
+                message = f"FWHM{' ' + peak_name if peak_name else ''} = {fwhm:.3f} при энергии {peak_x:.3f} эВ"
+            else:
+                message = f"FWHM{' ' + peak_name if peak_name else ''} = {fwhm:.3f} при X = {peak_x:.0f}"
+
+            self.console(message)
+
+        except Exception as e:
+            self.console(f"Ошибка при расчете FWHM: {str(e)}", True)
 
 app = QtWidgets.QApplication([])
 mainWin = window()
