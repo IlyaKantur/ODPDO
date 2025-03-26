@@ -2,6 +2,7 @@ from UI import Ui_MainWindow
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (QMainWindow)
 from PyQt6.QtCore import QTime, QDateTime, QTimer
+from PyQt6 import QtCore
 import sys
 import os
 import pyqtgraph as pg
@@ -10,6 +11,8 @@ import scipy as scipy
 from scipy.signal import savgol_filter
 from scipy.signal import find_peaks
 import scipy.interpolate as interpolate
+from scipy.optimize import curve_fit
+from scipy.special import voigt_profile
 
 class window(QMainWindow):
     def __init__(self):
@@ -52,7 +55,7 @@ class window(QMainWindow):
         self.text_item_table.setZValue(100)  # Устанавливаем высокое значение Z для отображения поверх графика
         self.text_item_result = pg.TextItem(anchor=(0.5, -1.0), color=(0, 0, 0), fill=(255, 255, 255, 200))
         self.text_item_result.setZValue(100)  # Устанавливаем высокое значение Z для отображения поверх графика
-        
+
         # Тригеры к кнопкам
         self.ui.ClearConsole_pushButton.clicked.connect(self.console_clear) # Очистка консоли
         self.ui.Folder_pushButton.clicked.connect(self.Folder_pushButton) # Загрузка из папки
@@ -70,8 +73,9 @@ class window(QMainWindow):
         self.plot_widget_resoult = pg.PlotWidget()
         self.ui.graphResoult_gridLayout.addWidget(self.plot_widget_resoult)
         self.plot_widget_resoult.addItem(self.text_item_result)
+        
+        # Подключаем сигнал для обновления координат при наведении
         self.plot_widget_resoult.scene().sigMouseMoved.connect(self.mouse_moved_result)
-        self.plot_widget_resoult.getViewBox().setMouseMode(pg.ViewBox.RectMode)
         
         # Создаем PlotWidget для таблицы
         self.plot_widget_table = pg.PlotWidget()
@@ -343,7 +347,7 @@ class window(QMainWindow):
         if sum_points <= 0:
             self.console("Количество точек для суммирования должно быть больше 0", True)
             return
-            
+
         # Создаем массив для хранения суммированных данных
         total_y = None
         total_x = None
@@ -368,7 +372,7 @@ class window(QMainWindow):
         # Сохраняем оригинальные данные
         self.original_X = self.cor_X_File_1D.copy()
         self.original_Y = self.cor_Y_File_1D.copy()
-        
+
         # Теперь можно построить график для суммированных данных
         self.plotSummedData(total_x, total_y)
 
@@ -531,8 +535,9 @@ class window(QMainWindow):
                                     symbol='o', symbolSize=3, symbolBrush='g')
     
     # Функции для обработки движения мыши и отображения координат
-    def mouse_moved_result(self, pos):
-        self.show_point_coordinates(self.plot_widget_resoult, pos, self.text_item_result)       
+    def mouse_moved_result(self, evt):
+        self.show_point_coordinates(self.plot_widget_resoult, evt, self.text_item_result)
+
     def mouse_moved_table(self, pos):
         self.show_point_coordinates(self.plot_widget_table, pos, self.text_item_table)
     def mouse_moved_graphs(self, pos):
@@ -934,6 +939,31 @@ class window(QMainWindow):
             self.console("Необходимо сначала выполнить калибровку", True)
             return
 
+        # Показываем диалоговое окно для выбора метода расчета FWHM
+        msg_box = QtWidgets.QMessageBox()
+        msg_box.setWindowTitle("Выбор метода расчета FWHM")
+        msg_box.setText("Выберите метод расчета:")
+        
+        # Добавляем кнопки для выбора метода
+        interp_button = msg_box.addButton("Интерполяция", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+        lorentz_button = msg_box.addButton("Лоренц", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+        cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+        
+        # Показываем диалоговое окно и ждем ответа
+        msg_box.exec()
+        
+        clicked_button = msg_box.clickedButton()
+        
+        if clicked_button == cancel_button:
+            return
+            
+        # Сохраняем выбранный метод
+        if clicked_button == interp_button:
+            self.fwhm_method = "interpolation"
+        elif clicked_button == lorentz_button:
+            self.fwhm_method = "lorentz"
+
+        # Остальная логика поиска пиков
         if len(self.cor_X_File_1D) == 0 or len(self.cor_Y_File_1D) == 0:
             self.console("Нет данных для расчета", True)
             return
@@ -991,8 +1021,12 @@ class window(QMainWindow):
                 self.console("Предупреждение: найденные пики значительно отличаются от заданных энергий", True)
 
             # Вычисляем FWHM для обоих пиков
-            self.calculate_fwhm(ka2_peak_idx, "Ka₂")
-            self.calculate_fwhm(ka1_peak_idx, "Ka₁")
+            if self.fwhm_method == "interpolation":
+                self.calculate_fwhm_interpolation(ka2_peak_idx, "Ka₂")
+                self.calculate_fwhm_interpolation(ka1_peak_idx, "Ka₁")
+            elif self.fwhm_method == "lorentz":
+                self.calculate_fwhm_lorentz(ka2_peak_idx, "Ka₂")
+                self.calculate_fwhm_lorentz(ka1_peak_idx, "Ka₁")
         else:
             # Для Kb или если переход не указан, ищем один пик
             peak_idx = find_max_peak_near_energy(E_one, peaks, search_window)
@@ -1007,10 +1041,13 @@ class window(QMainWindow):
                 self.console("Предупреждение: найденный пик значительно отличается от заданной энергии", True)
 
             # Вычисляем FWHM для найденного пика
-            self.calculate_fwhm(peak_idx, "Kb" if self.transition == "Kb" else "")
+            if self.fwhm_method == "interpolation":
+                self.calculate_fwhm_interpolation(peak_idx, "Kb" if self.transition == "Kb" else "")
+            elif self.fwhm_method == "lorentz":
+                self.calculate_fwhm_lorentz(peak_idx, "Kb" if self.transition == "Kb" else "")
 
-    def calculate_fwhm(self, peak_idx, peak_name=""):
-        """Вычисление FWHM для конкретного пика"""
+    def calculate_fwhm_interpolation(self, peak_idx, peak_name=""):
+        """Вычисление FWHM методом интерполяции"""
         try:
             peak_height = self.cor_Y_File_1D[peak_idx]
             half_max = peak_height / 2
@@ -1044,20 +1081,163 @@ class window(QMainWindow):
             # Вычисляем FWHM
             fwhm = abs(interp_right - interp_left)
 
+            # Отрисовываем результаты
+            inter = int(len(self.cor_X_File_1D)*0.2)
+            x_data = self.cor_X_File_1D[max(0, peak_idx-inter):min(len(self.cor_X_File_1D), peak_idx+inter)]
+            y_data = self.cor_Y_File_1D[max(0, peak_idx-inter):min(len(self.cor_Y_File_1D), peak_idx+inter)]
+            
+            self.plot_fwhm_results(
+                x_data, y_data,
+                interp_left, interp_right, half_max,
+                None, None,
+                peak_name
+            )
+
             # Формируем сообщение
             peak_x = self.cor_X_File_1D[peak_idx]
-            if self.calibrated:
-                message = f"FWHM{' ' + peak_name if peak_name else ''} = {fwhm:.3f} при энергии {peak_x:.3f} эВ"
-            else:
-                message = f"FWHM{' ' + peak_name if peak_name else ''} = {fwhm:.3f} при X = {peak_x:.0f}"
+
+            message = f"FWHM{' ' + peak_name if peak_name else ''} = {fwhm:.3f} при энергии {peak_x:.3f} эВ"
 
             # Сохраняем результат
             self.fwhm_results.append(message)
             
-            self.console(message)
+            self.console(message, False)
 
         except Exception as e:
             self.console(f"Ошибка при расчете FWHM: {str(e)}", True)
+
+    def calculate_fwhm_lorentz(self, peak_idx, peak_name=""):
+        """Вычисление FWHM с помощью аппроксимации функцией Лоренца"""
+        try:
+            # Определяем область вокруг пика для фитирования
+            window = int(len(self.cor_X_File_1D) * 0.05)  # 20% от общего количества точек
+            start_idx = max(0, peak_idx - window)
+            end_idx = min(len(self.cor_X_File_1D), peak_idx + window)
+
+            x_data = self.cor_X_File_1D[start_idx:end_idx]
+            y_data = self.cor_Y_File_1D[start_idx:end_idx]
+
+            # Получаем реальную высоту пика
+            peak_height = self.cor_Y_File_1D[peak_idx]
+
+            def lorentzian(x, x0, gamma, amplitude, offset):
+                """Функция Лоренца с амплитудой и смещением"""
+                return amplitude * gamma**2 / ((x - x0)**2 + gamma**2) + offset
+
+            # Начальные параметры для фитирования
+            p0 = [
+                self.cor_X_File_1D[peak_idx],  # x0 - центр пика
+                1.0,  # gamma - полуширина на половине высоты
+                peak_height,  # amplitude - высота пика
+                0.0   # offset - смещение
+            ]
+
+            # Ограничения для параметров
+            bounds = (
+                [self.cor_X_File_1D[peak_idx] - 5, 0.01, peak_height * 0.5, -peak_height * 0.1],  # нижние границы
+                [self.cor_X_File_1D[peak_idx] + 5, 10, peak_height * 1.5, peak_height * 0.1]   # верхние границы
+            )
+
+            # Фитируем функцию Лоренца
+            popt, _ = curve_fit(lorentzian, x_data, y_data, p0=p0, bounds=bounds)
+            x0, gamma, amplitude, offset = popt
+
+            # Создаем точки для построения аппроксимирующей кривой
+            x_fit = np.linspace(min(x_data), max(x_data), 1000)
+            y_fit = lorentzian(x_fit, x0, gamma, amplitude, offset)
+
+            # Вычисляем FWHM для функции Лоренца
+            fwhm = 2 * gamma
+
+            # Находим точки пересечения для визуализации
+            half_max_y = amplitude / 2 + offset
+            left_x = x0 - gamma
+            right_x = x0 + gamma
+
+            # Отрисовываем результаты
+            self.plot_fwhm_results(
+                x_data, y_data,
+                left_x, right_x, half_max_y,
+                x_fit, y_fit,
+                peak_name
+            )
+
+
+            message = f"FWHM{' ' + peak_name if peak_name else ''} (Lorentz) = {fwhm:.3f} при энергии {x0:.3f} эВ"
+
+            # Сохраняем результат
+            self.fwhm_results.append(message)
+            self.console(message, False)
+
+        except Exception as e:
+            self.console(f"Ошибка при расчете FWHM (Lorentz): {str(e)}", True)
+
+    def plot_fwhm_results(self, x_data, y_data, left_x, right_x, half_max_y, x_fit=None, y_fit=None, peak_name=""):
+        """Отрисовка результатов расчета FWHM"""
+        try:
+            # Создаем копию основного графика
+            main_plot_item = self.plot_widget_resoult.getPlotItem()
+            current_items = main_plot_item.listDataItems()
+            
+            # Сохраняем текущие настройки отображения
+            current_range = self.plot_widget_resoult.viewRange()
+            
+            # Очищаем график
+            self.plot_widget_resoult.clear()
+            
+            # Восстанавливаем основной график
+            for item in current_items:
+                self.plot_widget_resoult.addItem(item)
+            
+            # Определяем интервал для отображения
+            x_range = max(x_data) - min(x_data)
+            x_min = min(x_data) - x_range * 0.2
+            x_max = max(x_data) + x_range * 0.2
+            
+            # Если есть аппроксимация (метод Лоренца), рисуем её
+            if x_fit is not None and y_fit is not None:
+                self.plot_widget_resoult.plot(x_fit, y_fit, pen='r', name='Lorentz fit')
+            
+            # Рисуем линию половины максимума
+            self.plot_widget_resoult.plot(
+                [x_min, x_max],
+                [half_max_y, half_max_y],
+                pen=pg.mkPen('g', style=QtCore.Qt.PenStyle.DashLine),
+                name='Half Maximum'
+            )
+            
+            # Рисуем точки пересечения
+            self.plot_widget_resoult.plot(
+                [left_x, right_x],
+                [half_max_y, half_max_y],
+                pen=None,
+                symbol='o',
+                symbolSize=10,
+                symbolBrush='r',
+                name='FWHM points'
+            )
+            
+            # Рисуем вертикальные линии для обозначения FWHM
+            self.plot_widget_resoult.plot(
+                [left_x, left_x],
+                [0, half_max_y],
+                pen=pg.mkPen('r', style=QtCore.Qt.PenStyle.DashLine)
+            )
+            self.plot_widget_resoult.plot(
+                [right_x, right_x],
+                [0, half_max_y],
+                pen=pg.mkPen('r', style=QtCore.Qt.PenStyle.DashLine)
+            )
+            
+            # Добавляем легенду
+            # self.plot_widget_resoult.addLegend()
+            
+            # Устанавливаем диапазон отображения с фокусом на область пика
+            padding = x_range * 1.5 
+            self.plot_widget_resoult.setXRange(x_min - padding, x_max + padding)
+            
+        except Exception as e:
+            self.console(f"Ошибка при отрисовке результатов FWHM: {str(e)}", True)
 
     def observation_checkbox_changed(self, state):
         """Обработчик изменения состояния чекбокса наблюдения"""
