@@ -68,6 +68,8 @@ class window(QMainWindow):
         self.ui.Smooth_pushButton.clicked.connect(self.smooth_pushButton)
         self.ui.CancelSmooth_pushButton.clicked.connect(self.cancel_smooth_pushButton)
         self.ui.Calculation_pushButton.clicked.connect(self.calculation_pushButton)
+        self.ui.ApplyCoordinat_pushButton.clicked.connect(self.applyCoordinat_pushButton)
+        self.ui.CancleCoordinat_pushButton.clicked.connect(self.cancleCoordinat_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -533,11 +535,25 @@ class window(QMainWindow):
         # Строим график для суммированных данных с точками
         self.plot_widget_resoult.plot(x_display, y, pen='g', name='Суммированные данные', 
                                     symbol='o', symbolSize=3, symbolBrush='g')
-    
+
+        # Обновляем таблицу координат
+        self.updateCoordinatTable(x_display, y)
+
+    def updateCoordinatTable(self, x, y):
+        """Обновление таблицы координат"""
+        self.ui.Coordinat_tableWidget.setColumnCount(2)
+        self.ui.Coordinat_tableWidget.setColumnWidth(0, 72)
+        self.ui.Coordinat_tableWidget.setColumnWidth(1, 72)
+        self.ui.Coordinat_tableWidget.setHorizontalHeaderLabels(["X", "Y"])
+        self.ui.Coordinat_tableWidget.setRowCount(len(x))  # Устанавливаем количество строк
+
+        for i in range(len(x)):
+            self.ui.Coordinat_tableWidget.setItem(i, 0, QtWidgets.QTableWidgetItem(f"{x[i]:.2f}"))  # X
+            self.ui.Coordinat_tableWidget.setItem(i, 1, QtWidgets.QTableWidgetItem(f"{y[i]:.2f}"))  # Y
+
     # Функции для обработки движения мыши и отображения координат
     def mouse_moved_result(self, evt):
         self.show_point_coordinates(self.plot_widget_resoult, evt, self.text_item_result)
-
     def mouse_moved_table(self, pos):
         self.show_point_coordinates(self.plot_widget_table, pos, self.text_item_table)
     def mouse_moved_graphs(self, pos):
@@ -568,6 +584,9 @@ class window(QMainWindow):
         closest_point = None
         min_distance = float('inf')
         
+        if len(data_items) > 1:
+            data_items = [data_items[0]]
+
         for item in data_items:
             data_x = item.xData
             data_y = item.yData
@@ -1110,7 +1129,7 @@ class window(QMainWindow):
         """Вычисление FWHM с помощью аппроксимации функцией Лоренца"""
         try:
             # Определяем область вокруг пика для фитирования
-            window = int(len(self.cor_X_File_1D) * 0.05)  # 20% от общего количества точек
+            window = int(len(self.cor_X_File_1D) * 0.1)  # 10% от общего количества точек
             start_idx = max(0, peak_idx - window)
             end_idx = min(len(self.cor_X_File_1D), peak_idx + window)
 
@@ -1184,6 +1203,7 @@ class window(QMainWindow):
             
             # Очищаем график
             self.plot_widget_resoult.clear()
+            self.plot_widget_resoult.addItem(self.text_item_result)  # Возвращаем текстовый элемент
             
             # Восстанавливаем основной график
             for item in current_items:
@@ -1233,7 +1253,7 @@ class window(QMainWindow):
             # self.plot_widget_resoult.addLegend()
             
             # Устанавливаем диапазон отображения с фокусом на область пика
-            padding = x_range * 1.5 
+            padding = x_range * 1.2 
             self.plot_widget_resoult.setXRange(x_min - padding, x_max + padding)
             
         except Exception as e:
