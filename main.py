@@ -1282,6 +1282,66 @@ class window(QMainWindow):
         self.ui.sum_pushButton.setStyleSheet("background-color: #90EE90;")
         self.console("Режим наблюдения возобновлен")
 
+    def applyCoordinat_pushButton(self):
+        """Применяет изменения из таблицы координат к данным"""
+        try:
+            # Получаем количество строк в таблице
+            row_count = self.ui.Coordinat_tableWidget.rowCount()
+            
+            # Проверяем, что количество строк совпадает с текущими данными
+            if row_count != len(self.cor_Y_File_1D):
+                self.console("Количество строк в таблице не совпадает с данными", True)
+                return
+                
+            # Создаем новый массив Y
+            new_y = []
+            
+            # Читаем данные из таблицы
+            for i in range(row_count):
+                item = self.ui.Coordinat_tableWidget.item(i, 1)
+                if item is None:
+                    self.console(f"Отсутствует значение в строке {i+1}", True)
+                    return
+                try:
+                    y_value = float(item.text())
+                    new_y.append(y_value)
+                except ValueError:
+                    self.console(f"Некорректное значение в строке {i+1}", True)
+                    return
+                
+            # Применяем новые значения Y
+            self.cor_Y_File_1D = np.array(new_y)
+            
+            # Обновляем график
+            self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+            
+            self.console("Изменения координат Y успешно применены")
+            
+        except Exception as e:
+            self.console(f"Ошибка при применении изменений: {str(e)}", True)
+
+    def cancleCoordinat_pushButton(self):
+        """Отменяет изменения и возвращает оригинальные данные"""
+        try:
+            # Проверяем, есть ли оригинальные данные
+            if len(self.original_Y) == 0:
+                self.console("Нет данных для отмены изменений", True)
+                return
+            
+            # Восстанавливаем оригинальные значения Y
+            self.cor_Y_File_1D = self.original_Y.copy()
+            
+            # Обновляем график
+            self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+            
+            # Обновляем таблицу координат
+            self.updateCoordinatTable(self.cor_X_File_1D, self.cor_Y_File_1D)
+            
+            self.console("Изменения координат Y отменены")
+            
+        except Exception as e:
+            self.console(f"Ошибка при отмене изменений: {str(e)}", True)
+
 app = QtWidgets.QApplication([])
 mainWin = window()
 mainWin.showMaximized()

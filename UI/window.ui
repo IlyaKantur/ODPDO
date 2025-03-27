@@ -25,6 +25,10 @@
   <property name="windowTitle">
    <string>ODPDO</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../Icon/Icon.ico</normaloff>../Icon/Icon.ico</iconset>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
     <property name="leftMargin">
