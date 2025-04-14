@@ -71,6 +71,7 @@ class window(QMainWindow):
         self.ui.ApplyCoordinat_pushButton.clicked.connect(self.applyCoordinat_pushButton)
         self.ui.CancleCoordinat_pushButton.clicked.connect(self.cancleCoordinat_pushButton)
         self.ui.AddSpectra_pushButton.clicked.connect(self.addSpectra_pushButton)
+        self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -533,9 +534,31 @@ class window(QMainWindow):
         else:
             x_display = x
 
+        # Получаем имя первого файла для легенды
+        legend_name = os.path.basename(self.Name_File_1D[0])
+        legend_name = legend_name.split('-')
+        legend_name = legend_name[0]
+
         # Строим график для суммированных данных с точками
-        self.plot_widget_resoult.plot(x_display, y, pen='g', name='Суммированные данные', 
+        self.plot_widget_resoult.plot(x_display, y, pen='g', name=legend_name, 
                                     symbol='o', symbolSize=3, symbolBrush='g')
+
+        # Получаем текущий график и его данные
+        plot_item = self.plot_widget_resoult.getPlotItem()
+        current_plots = plot_item.listDataItems()
+
+        # Удаляем старую легенду
+        if plot_item.legend is not None:
+            plot_item.legend.scene().removeItem(plot_item.legend)
+            plot_item.legend = None
+
+        # Создаем новую легенду
+        legend = plot_item.addLegend(offset=(30, 30))
+
+        # Добавляем текущие графики в легенду
+        for plot in current_plots:
+            if plot.name() is not None:
+                legend.addItem(plot, plot.name())
 
         # Обновляем таблицу координат
         self.updateCoordinatTable(x_display, y)
@@ -1523,6 +1546,123 @@ class window(QMainWindow):
             
         except Exception as e:
             self.console(f"Ошибка при добавлении спектра: {str(e)}", True)
+
+    def delSpectra_pushButton(self):
+        """Удаление графиков"""
+        try:
+            # Получаем текущий график и его данные
+            plot_item = self.plot_widget_resoult.getPlotItem()
+            current_plots = plot_item.listDataItems()
+            
+            if len(current_plots) <= 1:
+                self.console("Нет дополнительных графиков для удаления", True)
+                return
+            
+            # Создаем диалоговое окно
+            dialog = QtWidgets.QDialog(self)
+            dialog.setWindowTitle("Удаление графиков")
+            dialog.setModal(True)
+            
+            # Создаем вертикальный layout
+            layout = QtWidgets.QVBoxLayout()
+            
+            # Создаем список графиков
+            list_widget = QtWidgets.QListWidget()
+            # Добавляем все графики кроме основного
+            for plot in current_plots[0:]:
+                item = QtWidgets.QListWidgetItem(plot.name())
+                list_widget.addItem(item)
+            
+            layout.addWidget(list_widget)
+            
+            # Создаем кнопку "Удалить все"
+            delete_all_button = QtWidgets.QPushButton("Удалить все добавленные")
+            layout.addWidget(delete_all_button)
+            
+            # Добавляем кнопку закрытия
+            close_button = QtWidgets.QPushButton("Закрыть")
+            layout.addWidget(close_button)
+            
+            # Устанавливаем layout для диалога
+            dialog.setLayout(layout)
+            
+            # Обработчик клика по элементу списка
+            def on_item_clicked(item):
+                # Показываем диалог подтверждения
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setWindowTitle("Подтверждение удаления")
+                msg_box.setText(f"Хотите удалить график '{item.text()}'?")
+                msg_box.setStandardButtons(
+                    QtWidgets.QMessageBox.StandardButton.Yes | 
+                    QtWidgets.QMessageBox.StandardButton.No
+                )
+                msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+                
+                if msg_box.exec() == QtWidgets.QMessageBox.StandardButton.Yes:
+                    # Находим и удаляем выбранный график
+                    for plot in current_plots[0:]:
+                        if plot.name() == item.text():
+                            self.plot_widget_resoult.removeItem(plot)
+                            list_widget.takeItem(list_widget.row(item))
+                            break
+                    
+                    # Обновляем легенду
+                    self.update_legend()
+                    self.console(f"График '{item.text()}' удален")
+            
+            # Обработчик кнопки "Удалить все"
+            def delete_all():
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setWindowTitle("Подтверждение удаления")
+                msg_box.setText("Хотите удалить все добавленные графики?")
+                msg_box.setStandardButtons(
+                    QtWidgets.QMessageBox.StandardButton.Yes | 
+                    QtWidgets.QMessageBox.StandardButton.No
+                )
+                msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+                
+                if msg_box.exec() == QtWidgets.QMessageBox.StandardButton.Yes:
+                    # Удаляем все графики кроме основного
+                    for plot in current_plots[0:]:
+                        self.plot_widget_resoult.removeItem(plot)
+                    list_widget.clear()
+                    
+                    # Обновляем легенду
+                    self.update_legend()
+                    self.console("Все добавленные графики удалены")
+                    dialog.close()
+            
+            # Подключаем обработчики событий
+            list_widget.itemClicked.connect(on_item_clicked)
+            delete_all_button.clicked.connect(delete_all)
+            close_button.clicked.connect(dialog.close)
+            
+            # Показываем диалог
+            dialog.exec()
+            
+        except Exception as e:
+            self.console(f"Ошибка при удалении графиков: {str(e)}", True)
+            
+    def update_legend(self):
+        """Обновление легенды"""
+        try:
+            plot_item = self.plot_widget_resoult.getPlotItem()
+            current_plots = plot_item.listDataItems()
+            
+            # Удаляем старую легенду
+            if plot_item.legend is not None:
+                plot_item.legend.scene().removeItem(plot_item.legend)
+                plot_item.legend = None
+            
+            # Создаем новую легенду если есть графики
+            if current_plots:
+                legend = plot_item.addLegend(offset=(30, 30))
+                for plot in current_plots:
+                    if plot.name() is not None:
+                        legend.addItem(plot, plot.name())
+                        
+        except Exception as e:
+            self.console(f"Ошибка при обновлении легенды: {str(e)}", True)
 
 
 app = QtWidgets.QApplication([])
