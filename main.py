@@ -608,8 +608,8 @@ class window(QMainWindow):
         closest_point = None
         min_distance = float('inf')
         
-        if len(data_items) > 1:
-            data_items = [data_items[0]]
+        # if len(data_items) > 1:
+        #     data_items = [data_items[0]]
 
         for item in data_items:
             data_x = item.xData
@@ -1554,9 +1554,9 @@ class window(QMainWindow):
             plot_item = self.plot_widget_resoult.getPlotItem()
             current_plots = plot_item.listDataItems()
             
-            if len(current_plots) <= 1:
-                self.console("Нет дополнительных графиков для удаления", True)
-                return
+            # if len(current_plots) <= 1:
+            #     self.console("Нет дополнительных графиков для удаления", True)
+            #     return
             
             # Создаем диалоговое окно
             dialog = QtWidgets.QDialog(self)
