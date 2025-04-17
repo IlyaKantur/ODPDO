@@ -70,6 +70,8 @@ class window(QMainWindow):
         self.ui.Calculation_pushButton.clicked.connect(self.calculation_pushButton)
         self.ui.ApplyCoordinat_pushButton.clicked.connect(self.applyCoordinat_pushButton)
         self.ui.CancleCoordinat_pushButton.clicked.connect(self.cancleCoordinat_pushButton)
+        self.ui.AddSpectra_pushButton.clicked.connect(self.addSpectra_pushButton)
+        self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -532,9 +534,31 @@ class window(QMainWindow):
         else:
             x_display = x
 
+        # Получаем имя первого файла для легенды
+        legend_name = os.path.basename(self.Name_File_1D[0])
+        legend_name = legend_name.split('-')
+        legend_name = legend_name[0]
+
         # Строим график для суммированных данных с точками
-        self.plot_widget_resoult.plot(x_display, y, pen='g', name='Суммированные данные', 
+        self.plot_widget_resoult.plot(x_display, y, pen='g', name=legend_name, 
                                     symbol='o', symbolSize=3, symbolBrush='g')
+
+        # Получаем текущий график и его данные
+        plot_item = self.plot_widget_resoult.getPlotItem()
+        current_plots = plot_item.listDataItems()
+
+        # Удаляем старую легенду
+        if plot_item.legend is not None:
+            plot_item.legend.scene().removeItem(plot_item.legend)
+            plot_item.legend = None
+
+        # Создаем новую легенду
+        legend = plot_item.addLegend(offset=(30, 30))
+
+        # Добавляем текущие графики в легенду
+        for plot in current_plots:
+            if plot.name() is not None:
+                legend.addItem(plot, plot.name())
 
         # Обновляем таблицу координат
         self.updateCoordinatTable(x_display, y)
@@ -584,8 +608,8 @@ class window(QMainWindow):
         closest_point = None
         min_distance = float('inf')
         
-        if len(data_items) > 1:
-            data_items = [data_items[0]]
+        # if len(data_items) > 1:
+        #     data_items = [data_items[0]]
 
         for item in data_items:
             data_x = item.xData
@@ -1342,7 +1366,309 @@ class window(QMainWindow):
         except Exception as e:
             self.console(f"Ошибка при отмене изменений: {str(e)}", True)
 
+    def addSpectra_pushButton(self):
+        """Добавление спектра для сравнения"""
+        try:
+            # Создаем диалоговое окно для выбора метода загрузки
+            dialog = QtWidgets.QDialog(self)
+            dialog.setWindowTitle("Сравнительный спектр")
+            dialog.setModal(True)
+            
+            # Создаем вертикальный layout
+            layout = QtWidgets.QVBoxLayout()
+            
+            # Создаем горизонтальный layout для спинбокса суммирования
+            sum_layout = QtWidgets.QHBoxLayout()
+            
+            # Добавляем label для спинбокса суммирования
+            sum_label = QtWidgets.QLabel("Количество точек для суммирования:")
+            sum_layout.addWidget(sum_label)
+            
+            # Создаем спинбокс для суммирования
+            sum_spin = QtWidgets.QSpinBox()
+            sum_spin.setMinimum(1)
+            sum_spin.setMaximum(1000)
+            sum_spin.setValue(self.ui.sum_spinBox.value())  # Берем значение из основного окна
+            sum_layout.addWidget(sum_spin)
+            
+            # Добавляем layout суммирования в основной layout
+            layout.addLayout(sum_layout)
+            
+            # Создаем горизонтальный layout для спинбокса сдвига
+            shift_layout = QtWidgets.QHBoxLayout()
+            
+            # Добавляем label для спинбокса сдвига
+            shift_label = QtWidgets.QLabel("Коэффициент сдвига (%):")
+            shift_layout.addWidget(shift_label)
+            
+            # Создаем спинбокс для сдвига
+            shift_spin = QtWidgets.QSpinBox()
+            shift_spin.setMinimum(15)
+            shift_spin.setMaximum(75)
+            shift_spin.setValue(50)  # Значение по умолчанию
+            shift_layout.addWidget(shift_spin)
+            
+            # Добавляем layout сдвига в основной layout
+            layout.addLayout(shift_layout)
+            
+            # Создаем кнопки
+            button_layout = QtWidgets.QHBoxLayout()
+            
+            folder_button = QtWidgets.QPushButton("Загрузить из папки")
+            files_button = QtWidgets.QPushButton("Выбрать файлы")
+            cancel_button = QtWidgets.QPushButton("Отмена")
+            
+            button_layout.addWidget(folder_button)
+            button_layout.addWidget(files_button)
+            button_layout.addWidget(cancel_button)
+            
+            # Добавляем кнопки в layout
+            layout.addLayout(button_layout)
+            
+            # Устанавливаем layout для диалога
+            dialog.setLayout(layout)
+            
+            # Подключаем сигналы кнопок
+            folder_button.clicked.connect(dialog.accept)
+            files_button.clicked.connect(dialog.accept)
+            cancel_button.clicked.connect(dialog.reject)
+            
+            # Сохраняем ссылку на нажатую кнопку
+            dialog.clicked_button = None
+            folder_button.clicked.connect(lambda: setattr(dialog, 'clicked_button', 'folder'))
+            files_button.clicked.connect(lambda: setattr(dialog, 'clicked_button', 'files'))
+            
+            # Показываем диалог и ждем ответа
+            result = dialog.exec()
+            
+            if result == QtWidgets.QDialog.DialogCode.Accepted:
+                # Получаем значения
+                sum_points = sum_spin.value()
+                shift_percent = shift_spin.value() / 100.0  # Переводим проценты в десятичную дробь
+                
+                if dialog.clicked_button == 'folder':
+                    # Открываем диалоговое окно для выбора папки
+                    folder_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Выберите папку")
+                    if not folder_path:
+                        return
+                        
+                    # Получаем список файлов из папки
+                    fileList = os.listdir(folder_path)
+                    valid_extensions = ('.dat', '.txt')
+                    file_paths = [os.path.normpath(os.path.join(folder_path, file)) 
+                                 for file in fileList if file.endswith(valid_extensions)]
+                    
+                elif dialog.clicked_button == 'files':
+                    # Открываем диалоговое окно для выбора файлов
+                    file_paths, _ = QtWidgets.QFileDialog.getOpenFileNames(
+                        self, "Выберите файлы", "", "Data Files (*.dat *.txt)")
+                    if not file_paths:
+                        return
+                else:
+                    return
+            else:
+                return
+                
+            # Загружаем данные из файлов
+            data_files = []
+            for file_path in file_paths:
+                data = self.readDataFromFile(file_path)
+                if data is not None:
+                    data_files.append(data)
+                    
+            if not data_files:
+                self.console("Нет данных для суммирования", True)
+                return
+            
+            # Суммируем данные
+            total_y = None
+            total_x = None
+            
+            for data in data_files:
+                x, y = data
+                # Суммируем по указанному количеству точек
+                summed_y = self.sumData(y, sum_points)
+                
+                # Если это первый файл, инициализируем total_y
+                if total_y is None:
+                    total_y = np.zeros_like(summed_y)
+                    total_x = np.arange(len(summed_y))
+                    
+                # Добавляем суммированные значения к total_y
+                total_y += summed_y
+                
+            # Получаем текущий график и его данные
+            plot_item = self.plot_widget_resoult.getPlotItem()
+            current_plots = plot_item.listDataItems()
+            
+            # Определяем максимальную высоту текущего графика
+            if current_plots:
+                current_max_y = max(plot.yData.max() for plot in current_plots)
+                # Добавляем смещение с учетом заданного коэффициента
+                total_y = total_y + (current_max_y * shift_percent)
+            
+            # Цвета и символы для графиков
+            colors = ['r', 'b', 'm', 'c', 'y', 'g']  # Красный, синий, пурпурный, голубой, желтый, зеленый
+            symbols = ['o', 's', 't', 'd', '+', 'x']  # Круг, квадрат, треугольник, ромб, плюс, крест
+            
+            # Определяем индекс для цвета и символа
+            color_index = len(current_plots) % len(colors)
+            
+            # Получаем имя первого файла для легенды
+            legend_name = os.path.basename(file_paths[0])
+            legend_name = legend_name.split('-')
+            legend_name = legend_name[0]
+            
+            # Удаляем старую легенду
+            if plot_item.legend is not None:
+                plot_item.legend.scene().removeItem(plot_item.legend)
+                plot_item.legend = None
+            
+            # Создаем новую легенду
+            legend = plot_item.addLegend(offset=(30, 30))
+            
+            # Добавляем текущие графики в легенду
+            for plot in current_plots:
+                if plot.name() is not None:
+                    legend.addItem(plot, plot.name())
+            
+            # Строим новый график
+            new_plot = self.plot_widget_resoult.plot(
+                total_x, total_y,
+                pen=pg.mkPen(colors[color_index], width=2),
+                name=legend_name,
+                symbol=symbols[color_index],
+                symbolSize=3,
+                symbolBrush=colors[color_index]
+            )
+            
+            self.console(f"Добавлен спектр из {len(data_files)} файлов")
+            
+        except Exception as e:
+            self.console(f"Ошибка при добавлении спектра: {str(e)}", True)
+
+    def delSpectra_pushButton(self):
+        """Удаление графиков"""
+        try:
+            # Получаем текущий график и его данные
+            plot_item = self.plot_widget_resoult.getPlotItem()
+            current_plots = plot_item.listDataItems()
+            
+            # if len(current_plots) <= 1:
+            #     self.console("Нет дополнительных графиков для удаления", True)
+            #     return
+            
+            # Создаем диалоговое окно
+            dialog = QtWidgets.QDialog(self)
+            dialog.setWindowTitle("Удаление графиков")
+            dialog.setModal(True)
+            
+            # Создаем вертикальный layout
+            layout = QtWidgets.QVBoxLayout()
+            
+            # Создаем список графиков
+            list_widget = QtWidgets.QListWidget()
+            # Добавляем все графики кроме основного
+            for plot in current_plots[0:]:
+                item = QtWidgets.QListWidgetItem(plot.name())
+                list_widget.addItem(item)
+            
+            layout.addWidget(list_widget)
+            
+            # Создаем кнопку "Удалить все"
+            delete_all_button = QtWidgets.QPushButton("Удалить все добавленные")
+            layout.addWidget(delete_all_button)
+            
+            # Добавляем кнопку закрытия
+            close_button = QtWidgets.QPushButton("Закрыть")
+            layout.addWidget(close_button)
+            
+            # Устанавливаем layout для диалога
+            dialog.setLayout(layout)
+            
+            # Обработчик клика по элементу списка
+            def on_item_clicked(item):
+                # Показываем диалог подтверждения
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setWindowTitle("Подтверждение удаления")
+                msg_box.setText(f"Хотите удалить график '{item.text()}'?")
+                msg_box.setStandardButtons(
+                    QtWidgets.QMessageBox.StandardButton.Yes | 
+                    QtWidgets.QMessageBox.StandardButton.No
+                )
+                msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+                
+                if msg_box.exec() == QtWidgets.QMessageBox.StandardButton.Yes:
+                    # Находим и удаляем выбранный график
+                    for plot in current_plots[0:]:
+                        if plot.name() == item.text():
+                            self.plot_widget_resoult.removeItem(plot)
+                            list_widget.takeItem(list_widget.row(item))
+                            break
+                    
+                    # Обновляем легенду
+                    self.update_legend()
+                    self.console(f"График '{item.text()}' удален")
+            
+            # Обработчик кнопки "Удалить все"
+            def delete_all():
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setWindowTitle("Подтверждение удаления")
+                msg_box.setText("Хотите удалить все добавленные графики?")
+                msg_box.setStandardButtons(
+                    QtWidgets.QMessageBox.StandardButton.Yes | 
+                    QtWidgets.QMessageBox.StandardButton.No
+                )
+                msg_box.setDefaultButton(QtWidgets.QMessageBox.StandardButton.No)
+                
+                if msg_box.exec() == QtWidgets.QMessageBox.StandardButton.Yes:
+                    # Удаляем все графики кроме основного
+                    for plot in current_plots[0:]:
+                        self.plot_widget_resoult.removeItem(plot)
+                    list_widget.clear()
+                    
+                    # Обновляем легенду
+                    self.update_legend()
+                    self.console("Все добавленные графики удалены")
+                    dialog.close()
+            
+            # Подключаем обработчики событий
+            list_widget.itemClicked.connect(on_item_clicked)
+            delete_all_button.clicked.connect(delete_all)
+            close_button.clicked.connect(dialog.close)
+            
+            # Показываем диалог
+            dialog.exec()
+            
+        except Exception as e:
+            self.console(f"Ошибка при удалении графиков: {str(e)}", True)
+            
+    def update_legend(self):
+        """Обновление легенды"""
+        try:
+            plot_item = self.plot_widget_resoult.getPlotItem()
+            current_plots = plot_item.listDataItems()
+            
+            # Удаляем старую легенду
+            if plot_item.legend is not None:
+                plot_item.legend.scene().removeItem(plot_item.legend)
+                plot_item.legend = None
+            
+            # Создаем новую легенду если есть графики
+            if current_plots:
+                legend = plot_item.addLegend(offset=(30, 30))
+                for plot in current_plots:
+                    if plot.name() is not None:
+                        legend.addItem(plot, plot.name())
+                        
+        except Exception as e:
+            self.console(f"Ошибка при обновлении легенды: {str(e)}", True)
+
+
 app = QtWidgets.QApplication([])
 mainWin = window()
 mainWin.showMaximized()
 sys.exit(app.exec())
+
+
+# pyuic5 32/UI/window_32.ui -o 32/UI/window_32.py
