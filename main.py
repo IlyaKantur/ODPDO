@@ -2,6 +2,7 @@ from UI import Ui_MainWindow
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import (QMainWindow)
 from PyQt6.QtCore import QTime, QDateTime, QTimer
+from PyQt6.QtGui import QFont
 from PyQt6 import QtCore
 import sys
 import os
@@ -608,9 +609,6 @@ class window(QMainWindow):
         closest_point = None
         min_distance = float('inf')
         
-        # if len(data_items) > 1:
-        #     data_items = [data_items[0]]
-
         for item in data_items:
             data_x = item.xData
             data_y = item.yData
@@ -627,47 +625,22 @@ class window(QMainWindow):
         
         # Если нашли ближайшую точку - показываем координаты
         if closest_point:
-            # Определяем границы для позиционирования
-            x_width = x_range[1] - x_range[0]
-            y_height = y_range[1] - y_range[0]
+            # Устанавливаем якорь в правый верхний угол графика
+            text_item.setAnchor((1.0, 0.0))
             
-            # Отступы от границ (15% от размера видимой области)
-            x_margin = x_width * 0.15
-            y_margin = y_height * 0.15
-            
-            # Правая и левая границы
-            right_bound = x_range[1] - x_margin
-            left_bound = x_range[0] + x_margin
-            # Верхняя граница с отступом
-            upper_bound = y_range[1] - y_margin
-            
-            # Определяем положение точки относительно границ
-            near_right = closest_point[0] > right_bound
-            near_left = closest_point[0] < left_bound
-            near_top = closest_point[1] > upper_bound
-            
-            # Устанавливаем якорь в зависимости от положения точки
-            if near_top:
-                if near_right:
-                    text_item.setAnchor((1.0, 0.0))  # Точка в правом верхнем углу
-                elif near_left:
-                    text_item.setAnchor((0.0, 0.0))  # Точка в левом верхнем углу
-                else:
-                    text_item.setAnchor((0.5, 0.0))  # Точка вверху по центру
-            else:
-                if near_right:
-                    text_item.setAnchor((1.0, 1.0))  # Точка в правом нижнем углу
-                elif near_left:
-                    text_item.setAnchor((0.0, 1.0))  # Точка в левом нижнем углу
-                else:
-                    # В центральной области используем стандартную логику
-                    if closest_point[0] > (x_range[0] + x_range[1]) / 2:
-                        text_item.setAnchor((0.0, 1.0))  # Якорь слева внизу текста
-                    else:
-                        text_item.setAnchor((1.0, 1.0))  # Якорь справа внизу текста
+            # Устанавливаем шрифт с увеличенным размером
+            font = QFont()
+            font.setPointSize(12)  # Устанавливаем размер шрифта
+            text_item.setFont(font)
             
             text_item.setText(f"X: {closest_point[0]:.2f}\nY: {closest_point[1]:.2f}")
-            text_item.setPos(closest_point[0], closest_point[1])
+            
+            # Вычисляем отступы от краев (5% от размера видимой области)
+            x_margin = (x_range[1] - x_range[0]) * 0.01
+            y_margin = (y_range[1] - y_range[0]) * 0.01
+            
+            # Устанавливаем позицию в правом верхнем углу графика с отступами
+            text_item.setPos(x_range[1] - x_margin, y_range[1] - y_margin)
             text_item.show()
         else:
             text_item.hide()
