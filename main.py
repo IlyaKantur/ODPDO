@@ -103,7 +103,7 @@ class window(QMainWindow):
         self.observation_timer = QTimer()
         self.observation_timer.timeout.connect(self.check_new_files)
         self.observation_folder = ""  # Папка для наблюдения
-        self.processed_files = set()  # Множество уже обработанных файлов
+        self.processed_files = []  # Множество уже обработанных файлов
 
         # Добавляем обработчик изменения состояния чекбокса наблюдения
         self.ui.Observ_checkBox.stateChanged.connect(self.observation_checkbox_changed)
@@ -176,7 +176,7 @@ class window(QMainWindow):
         else:
             self.console("Папка пустая", False)
 
-    def loadFilesData(self):
+    def loadFilesData(self, ):
         # Очищаем массив данных
         self.data_files = []
         self.ui.table_tableWidget.clear()  # Очищаем таблицу перед добавлением новых данных
@@ -386,12 +386,13 @@ class window(QMainWindow):
 
     def start_observation_mode(self):
         """Запуск режима наблюдения"""
+        self.data_files = []
         # Запрашиваем папку для наблюдения
         folder_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Выберите папку для наблюдения")
         if not folder_path:
             self.console("Папка для наблюдения не выбрана", True)
             return
-            
+        
         self.observation_folder = folder_path
         # Получаем период обновления в минутах и переводим в миллисекунды
         update_period = self.ui.time_spinBox.value() * 60 * 1000
@@ -401,10 +402,10 @@ class window(QMainWindow):
             return
             
         # Запускаем наблюдение
-        self.processed_files = set()  # Очищаем список обработанных файлов
+        self.processed_files.clear()  # Очищаем список обработанных файлов
         self.start_observation(update_period)
-        # Выполняем первичное суммирование
-        self.process_files()
+        # # Выполняем первичное суммирование
+        # self.process_files()
 
     def sumData(self, y, sum_points):
         """Суммирование данных с использованием скользящего окна"""
@@ -436,17 +437,17 @@ class window(QMainWindow):
     def check_new_files(self):
         """Проверка новых файлов в папке наблюдения"""
         try:
+            new_files = []
             # Получаем список всех .dat и .txt файлов в папке
             valid_extensions = ('.dat', '.txt')
-            current_files = set(
-                os.path.join(self.observation_folder, f) 
-                for f in os.listdir(self.observation_folder) 
-                if f.endswith(valid_extensions)
-            )
-            
-            # Находим новые файлы
-            new_files = current_files - self.processed_files
-            
+            fileList = os.listdir(self.observation_folder)
+            self.File_path_1D = [os.path.normpath(os.path.join(self.observation_folder, file)) 
+                                for file in fileList if file.endswith(valid_extensions)]
+            self.Name_File_1D = [file for file in fileList if file.endswith(valid_extensions)]
+
+            # Находим новые файлы (исключаем уже обработанные)
+            new_files = [f for f in self.File_path_1D if f not in self.processed_files]
+            count_proc_files = len(self.processed_files)
             if new_files:
                 self.console(f"Найдено новых файлов: {len(new_files)}")
                 
@@ -454,16 +455,22 @@ class window(QMainWindow):
                 current_x = self.cor_X_File_1D.copy() if len(self.cor_X_File_1D) > 0 else None
                 current_y = self.cor_Y_File_1D.copy() if len(self.cor_Y_File_1D) > 0 else None
                 
+                self.ui.table_tableWidget.setRowCount(len(self.File_path_1D))
                 # Загружаем и обрабатываем новые файлы
-                for file_path in new_files:
+                for i, file_path in enumerate(new_files):
                     data = self.readDataFromFile(file_path)
                     if data is not None:
                         self.data_files.append(data)
-                        self.processed_files.add(file_path)
+                        self.processed_files.append(file_path)
+
+                        # Добавляем в таблицу
+                        self.ui.table_tableWidget.setItem(i + count_proc_files, 0, QtWidgets.QTableWidgetItem(self.Name_File_1D[i + count_proc_files]))  # Добавляем имя файла в первую колонку
+                        # Строим графики для всех загруженных данных
+                        self.loadAndPlotData()
                 
                 # Выполняем суммирование с учетом новых файлов
                 self.process_files(current_x, current_y)
-                
+        
         except Exception as e:
             self.console(f"Ошибка при проверке новых файлов: {str(e)}", True)
             self.stop_observation()
@@ -636,8 +643,8 @@ class window(QMainWindow):
             text_item.setText(f"X: {closest_point[0]:.2f}\nY: {closest_point[1]:.2f}")
             
             # Вычисляем отступы от краев (5% от размера видимой области)
-            x_margin = (x_range[1] - x_range[0]) * 0.01
-            y_margin = (y_range[1] - y_range[0]) * 0.01
+            x_margin = (x_range[1] - x_range[0]) * 0.05
+            y_margin = (y_range[1] - y_range[0]) * 0.05
             
             # Устанавливаем позицию в правом верхнем углу графика с отступами
             text_item.setPos(x_range[1] - x_margin, y_range[1] - y_margin)
