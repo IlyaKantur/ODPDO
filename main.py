@@ -20,11 +20,15 @@ class window(QMainWindow):
         super(window, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-
+        
         # Устанавливаем текстовое поле консоли как только для чтения
         self.ui.Console_textEdit.setReadOnly(True)
-
-        # Переменные
+        
+        # Инициализация атрибутов для ИИ обработки
+        self.ai_x_data = None
+        self.ai_y_data = None
+        
+        # Инициализация атрибутов для наблюдения
         self.Folder_path_1D = ""
         self.Name_File_1D = []
         self.File_path_1D = []
@@ -1648,7 +1652,21 @@ class window(QMainWindow):
     def AI_Processing_pushButton(self):
         """Обработка данных с помощью ИИ"""
         try:
-            self.console("Обработка данных с помощью ИИ")
+            # Проверяем наличие данных
+            if not hasattr(self, 'cor_X_File_1D') or not hasattr(self, 'cor_Y_File_1D'):
+                self.console("Сначала просуммируйте данные")
+                return
+                
+            if len(self.cor_X_File_1D) == 0 or len(self.cor_Y_File_1D) == 0:
+                self.console("Сначала просуммируйте данные")
+                return
+                
+            # Сохраняем данные для дальнейшей обработки
+            self.ai_x_data = self.cor_X_File_1D
+            self.ai_y_data = self.cor_Y_File_1D
+            
+            self.console(f"Данные получены. Количество точек: {len(self.cor_X_File_1D)}")
+                
         except Exception as e:
             self.console(f"Ошибка при обработке данных с помощью ИИ: {str(e)}", True)
 
