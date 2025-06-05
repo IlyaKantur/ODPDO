@@ -2,6 +2,7 @@ from UI import Ui_MainWindow_32
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QMainWindow)
 from PyQt5.QtCore import QTime, QDateTime, QTimer
+from PyQt5.QtGui import QFont
 from PyQt5 import QtCore
 import sys
 import os
@@ -102,7 +103,7 @@ class window(QMainWindow):
         self.observation_timer = QTimer()
         self.observation_timer.timeout.connect(self.check_new_files)
         self.observation_folder = ""  # Папка для наблюдения
-        self.processed_files = set()  # Множество уже обработанных файлов
+        self.processed_files = []  # Множество уже обработанных файлов
 
         # Добавляем обработчик изменения состояния чекбокса наблюдения
         self.ui.Observ_checkBox.stateChanged.connect(self.observation_checkbox_changed)
@@ -385,6 +386,7 @@ class window(QMainWindow):
 
     def start_observation_mode(self):
         """Запуск режима наблюдения"""
+        self.data_files = []
         # Запрашиваем папку для наблюдения
         folder_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Выберите папку для наблюдения")
         if not folder_path:
@@ -400,10 +402,10 @@ class window(QMainWindow):
             return
             
         # Запускаем наблюдение
-        self.processed_files = set()  # Очищаем список обработанных файлов
+        self.processed_files = []  # Очищаем список обработанных файлов
         self.start_observation(update_period)
         # Выполняем первичное суммирование
-        self.process_files()
+        # self.process_files()
 
     def sumData(self, y, sum_points):
         """Суммирование данных с использованием скользящего окна"""
@@ -435,17 +437,17 @@ class window(QMainWindow):
     def check_new_files(self):
         """Проверка новых файлов в папке наблюдения"""
         try:
+            new_files = []
             # Получаем список всех .dat и .txt файлов в папке
             valid_extensions = ('.dat', '.txt')
-            current_files = set(
-                os.path.join(self.observation_folder, f) 
-                for f in os.listdir(self.observation_folder) 
-                if f.endswith(valid_extensions)
-            )
-            
-            # Находим новые файлы
-            new_files = current_files - self.processed_files
-            
+            fileList = os.listdir(self.observation_folder)
+            self.File_path_1D = [os.path.normpath(os.path.join(self.observation_folder, file)) 
+                                for file in fileList if file.endswith(valid_extensions)]
+            self.Name_File_1D = [file for file in fileList if file.endswith(valid_extensions)]
+
+            # Находим новые файлы (исключаем уже обработанные)
+            new_files = [f for f in self.File_path_1D if f not in self.processed_files]
+            count_proc_files = len(self.processed_files)
             if new_files:
                 self.console(f"Найдено новых файлов: {len(new_files)}")
                 
@@ -453,16 +455,22 @@ class window(QMainWindow):
                 current_x = self.cor_X_File_1D.copy() if len(self.cor_X_File_1D) > 0 else None
                 current_y = self.cor_Y_File_1D.copy() if len(self.cor_Y_File_1D) > 0 else None
                 
+                self.ui.table_tableWidget.setRowCount(len(self.File_path_1D))
                 # Загружаем и обрабатываем новые файлы
-                for file_path in new_files:
+                for i, file_path in enumerate(new_files):
                     data = self.readDataFromFile(file_path)
                     if data is not None:
                         self.data_files.append(data)
-                        self.processed_files.add(file_path)
+                        self.processed_files.append(file_path)
+
+                        # Добавляем в таблицу
+                        self.ui.table_tableWidget.setItem(i + count_proc_files, 0, QtWidgets.QTableWidgetItem(self.Name_File_1D[i + count_proc_files]))  # Добавляем имя файла в первую колонку
+                        # Строим графики для всех загруженных данных
+                        self.loadAndPlotData()
                 
                 # Выполняем суммирование с учетом новых файлов
                 self.process_files(current_x, current_y)
-                
+        
         except Exception as e:
             self.console(f"Ошибка при проверке новых файлов: {str(e)}", True)
             self.stop_observation()
@@ -627,47 +635,22 @@ class window(QMainWindow):
         
         # Если нашли ближайшую точку - показываем координаты
         if closest_point:
-            # Определяем границы для позиционирования
-            x_width = x_range[1] - x_range[0]
-            y_height = y_range[1] - y_range[0]
+            # Устанавливаем якорь в правый верхний угол графика
+            text_item.setAnchor((1.0, 0.0))
             
-            # Отступы от границ (15% от размера видимой области)
-            x_margin = x_width * 0.15
-            y_margin = y_height * 0.15
-            
-            # Правая и левая границы
-            right_bound = x_range[1] - x_margin
-            left_bound = x_range[0] + x_margin
-            # Верхняя граница с отступом
-            upper_bound = y_range[1] - y_margin
-            
-            # Определяем положение точки относительно границ
-            near_right = closest_point[0] > right_bound
-            near_left = closest_point[0] < left_bound
-            near_top = closest_point[1] > upper_bound
-            
-            # Устанавливаем якорь в зависимости от положения точки
-            if near_top:
-                if near_right:
-                    text_item.setAnchor((1.0, 0.0))  # Точка в правом верхнем углу
-                elif near_left:
-                    text_item.setAnchor((0.0, 0.0))  # Точка в левом верхнем углу
-                else:
-                    text_item.setAnchor((0.5, 0.0))  # Точка вверху по центру
-            else:
-                if near_right:
-                    text_item.setAnchor((1.0, 1.0))  # Точка в правом нижнем углу
-                elif near_left:
-                    text_item.setAnchor((0.0, 1.0))  # Точка в левом нижнем углу
-                else:
-                    # В центральной области используем стандартную логику
-                    if closest_point[0] > (x_range[0] + x_range[1]) / 2:
-                        text_item.setAnchor((0.0, 1.0))  # Якорь слева внизу текста
-                    else:
-                        text_item.setAnchor((1.0, 1.0))  # Якорь справа внизу текста
+            # Устанавливаем шрифт с увеличенным размером
+            font = QFont()
+            font.setPointSize(12)  # Устанавливаем размер шрифта
+            text_item.setFont(font)
             
             text_item.setText(f"X: {closest_point[0]:.2f}\nY: {closest_point[1]:.2f}")
-            text_item.setPos(closest_point[0], closest_point[1])
+            
+            # Вычисляем отступы от краев (5% от размера видимой области)
+            x_margin = (x_range[1] - x_range[0]) * 0.05
+            y_margin = (y_range[1] - y_range[0]) * 0.05
+            
+            # Устанавливаем позицию в правом верхнем углу графика с отступами
+            text_item.setPos(x_range[1] - x_margin, y_range[1] - y_margin)
             text_item.show()
         else:
             text_item.hide()
