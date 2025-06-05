@@ -73,6 +73,7 @@ class window(QMainWindow):
         self.ui.CancleCoordinat_pushButton.clicked.connect(self.cancleCoordinat_pushButton)
         self.ui.AddSpectra_pushButton.clicked.connect(self.addSpectra_pushButton)
         self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
+        self.ui.AI_Processing_pushButton.clicked.connect(self.AI_Processing_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -1643,6 +1644,13 @@ class window(QMainWindow):
                         
         except Exception as e:
             self.console(f"Ошибка при обновлении легенды: {str(e)}", True)
+
+    def AI_Processing_pushButton(self):
+        """Обработка данных с помощью ИИ"""
+        try:
+            self.console("Обработка данных с помощью ИИ")
+        except Exception as e:
+            self.console(f"Ошибка при обработке данных с помощью ИИ: {str(e)}", True)
 
 
 app = QtWidgets.QApplication([])
