@@ -15,20 +15,23 @@ import scipy.interpolate as interpolate
 from scipy.optimize import curve_fit
 from scipy.special import voigt_profile
 
+import tensorflow as tf
+from tensorflow import keras
+from keras import layers
+
+import pickle
+import json
+
 class window(QMainWindow):
     def __init__(self):
         super(window, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        
+
         # Устанавливаем текстовое поле консоли как только для чтения
         self.ui.Console_textEdit.setReadOnly(True)
-        
-        # Инициализация атрибутов для ИИ обработки
-        self.ai_x_data = None
-        self.ai_y_data = None
-        
-        # Инициализация атрибутов для наблюдения
+
+        # Переменные
         self.Folder_path_1D = ""
         self.Name_File_1D = []
         self.File_path_1D = []
@@ -40,6 +43,15 @@ class window(QMainWindow):
 
         self.table_X = []
         self.table_Y = []
+
+        self.ai_x_data = []
+        self.ai_y_data = []
+        
+        # Переменные для нейронной сети
+        self.neural_network = None
+        self.model_path = "trained_spectrum_model.h5"
+        self.model_info_path = "model_info.json"
+        self.is_model_trained = False
         
         self.calibrated = False #показывает был ли откалиброван
         self.smoothed = False #показывает был ли сглажен спектр
@@ -78,6 +90,7 @@ class window(QMainWindow):
         self.ui.AddSpectra_pushButton.clicked.connect(self.addSpectra_pushButton)
         self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
         self.ui.AI_Processing_pushButton.clicked.connect(self.AI_Processing_pushButton)
+        self.ui.AI_Training_pushButton.clicked.connect(self.AI_Training_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -1666,9 +1679,215 @@ class window(QMainWindow):
             self.ai_y_data = self.cor_Y_File_1D
             
             self.console(f"Данные получены. Количество точек: {len(self.cor_X_File_1D)}")
+            
+            # Пытаемся загрузить обученную модель
+            if self.load_trained_model():
+                self.console("Обученная модель загружена")
+                # Применяем модель для очистки данных
+                self.apply_neural_network()
+            else:
+                self.console("Модель не найдена. Используйте кнопку 'AI Training' для обучения")
                 
         except Exception as e:
             self.console(f"Ошибка при обработке данных с помощью ИИ: {str(e)}", True)
+
+    def AI_Training_pushButton(self):
+        """Обучение нейронной сети"""
+        try:
+            # Проверяем наличие данных
+            if not hasattr(self, 'cor_X_File_1D') or not hasattr(self, 'cor_Y_File_1D'):
+                self.console("Сначала просуммируйте данные")
+                return
+                
+            if len(self.cor_X_File_1D) == 0 or len(self.cor_Y_File_1D) == 0:
+                self.console("Сначала просуммируйте данные")
+                return
+                
+            # Сохраняем данные для обучения
+            self.ai_x_data = self.cor_X_File_1D
+            self.ai_y_data = self.cor_Y_File_1D
+            
+            self.console(f"Начинаем обучение нейронной сети на {len(self.cor_X_File_1D)} точках")
+            
+            # Запускаем обучение
+            self.train_neural_network()
+                
+        except Exception as e:
+            self.console(f"Ошибка при обучении нейронной сети: {str(e)}", True)
+
+    def create_neural_network(self, input_size):
+        """Создание архитектуры нейронной сети"""
+        model = keras.Sequential([
+            layers.Input(shape=(input_size,)),
+            
+            # Кодировщик
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            
+            # Декодировщик
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(input_size, activation='linear')
+        ])
+        
+        model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+        return model
+
+    def prepare_training_data(self):
+        """Подготовка данных для обучения"""
+        # Нормализация данных
+        y_data = np.array(self.ai_y_data)
+        y_mean = np.mean(y_data)
+        y_std = np.std(y_data)
+        y_normalized = (y_data - y_mean) / (y_std + 1e-8)
+        
+        # Создание зашумленных данных для обучения
+        noise_level = 0.1
+        noisy_data = y_normalized + noise_level * np.random.normal(0, 1, y_normalized.shape)
+        
+        return y_normalized, noisy_data, y_mean, y_std
+
+    def train_neural_network(self):
+        """Обучение нейронной сети"""
+        try:
+            self.console("Подготовка данных для обучения...")
+            
+            # Подготовка данных
+            clean_data, noisy_data, self.y_mean, self.y_std = self.prepare_training_data()
+            
+            # Создание модели
+            input_size = len(clean_data)
+            self.neural_network = self.create_neural_network(input_size)
+            
+            self.console("Начинаем обучение модели...")
+            
+            # Обучение модели
+            history = self.neural_network.fit(
+                noisy_data.reshape(1, -1),
+                clean_data.reshape(1, -1),
+                epochs=100,
+                batch_size=1,
+                verbose=0
+            )
+            
+            self.is_model_trained = True
+            
+            # Сохранение модели
+            self.save_trained_model()
+            
+            self.console("Модель обучена и сохранена")
+            
+            # Применяем модель к текущим данным
+            self.apply_neural_network()
+            
+        except Exception as e:
+            self.console(f"Ошибка при обучении модели: {str(e)}", True)
+
+    def apply_neural_network(self):
+        """Применение нейронной сети для очистки данных"""
+        try:
+            if not self.is_model_trained or self.neural_network is None:
+                self.console("Модель не обучена")
+                return
+            
+            # Нормализация входных данных
+            y_data = np.array(self.ai_y_data)
+            y_normalized = (y_data - self.y_mean) / (self.y_std + 1e-8)
+            
+            # Применение модели
+            denoised_normalized = self.neural_network.predict(y_normalized.reshape(1, -1), verbose=0)
+            
+            # Обратная нормализация
+            self.ai_y_denoised = denoised_normalized.flatten() * (self.y_std + 1e-8) + self.y_mean
+            
+            self.console("Данные очищены с помощью нейронной сети")
+            
+            # Визуализация результатов
+            self.plot_denoised_data()
+            
+        except Exception as e:
+            self.console(f"Ошибка при применении модели: {str(e)}", True)
+
+    def plot_denoised_data(self):
+        """Визуализация исходных и очищенных данных"""
+        try:
+            # Очищаем график результатов
+            self.plot_widget_resoult.clear()
+            self.plot_widget_resoult.addItem(self.text_item_result)
+            
+            # Строим исходные данные
+            self.plot_widget_resoult.plot(
+                self.ai_x_data, self.ai_y_data,
+                pen='b', name='Исходные данные',
+                symbol='o', symbolSize=3, symbolBrush='b'
+            )
+            
+            # Строим очищенные данные
+            self.plot_widget_resoult.plot(
+                self.ai_x_data, self.ai_y_denoised,
+                pen='r', name='Очищенные данные',
+                symbol='s', symbolSize=3, symbolBrush='r'
+            )
+            
+            # Добавляем легенду
+            self.plot_widget_resoult.addLegend(offset=(30, 30))
+            
+            self.console("График обновлен: синий - исходные данные, красный - очищенные")
+            
+        except Exception as e:
+            self.console(f"Ошибка при построении графика: {str(e)}", True)
+
+    def save_trained_model(self):
+        """Сохранение обученной модели"""
+        try:
+            if self.neural_network is not None:
+                # Сохраняем модель
+                self.neural_network.save(self.model_path)
+                
+                # Сохраняем информацию о модели
+                model_info = {
+                    'y_mean': float(self.y_mean),
+                    'y_std': float(self.y_std),
+                    'input_size': len(self.ai_y_data),
+                    'trained': True
+                }
+                
+                with open(self.model_info_path, 'w') as f:
+                    json.dump(model_info, f)
+                
+                self.console(f"Модель сохранена в {self.model_path}")
+                
+        except Exception as e:
+            self.console(f"Ошибка при сохранении модели: {str(e)}", True)
+
+    def load_trained_model(self):
+        """Загрузка обученной модели"""
+        try:
+            if os.path.exists(self.model_path) and os.path.exists(self.model_info_path):
+                # Загружаем модель
+                self.neural_network = keras.models.load_model(self.model_path)
+                
+                # Загружаем информацию о модели
+                with open(self.model_info_path, 'r') as f:
+                    model_info = json.load(f)
+                
+                self.y_mean = model_info['y_mean']
+                self.y_std = model_info['y_std']
+                self.is_model_trained = True
+                
+                self.console("Модель успешно загружена")
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            self.console(f"Ошибка при загрузке модели: {str(e)}", True)
+            return False
 
 
 app = QtWidgets.QApplication([])
