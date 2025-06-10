@@ -49,9 +49,11 @@ class window(QMainWindow):
         
         # Переменные для нейронной сети
         self.neural_network = None
-        self.model_path = "trained_spectrum_model.h5"
-        self.model_info_path = "model_info.json"
+        self.ai_folder = "AI"
+        self.model_path = os.path.join(self.ai_folder, "trained_spectrum_model.h5")
+        self.model_info_path = os.path.join(self.ai_folder, "model_info.json")
         self.is_model_trained = False
+        self.ai_transition_type = None  # Ka или Kb
         
         self.calibrated = False #показывает был ли откалиброван
         self.smoothed = False #показывает был ли сглажен спектр
@@ -134,6 +136,10 @@ class window(QMainWindow):
 
         self.console("Программа запущена", False)
 
+        # Создаем папку AI если её нет
+        if not os.path.exists(self.ai_folder):
+            os.makedirs(self.ai_folder)
+            self.console(f"Создана папка {self.ai_folder}")
 
     def Folder_pushButton(self):
         # Открываем диалоговое окно для выбора папки
@@ -1680,13 +1686,41 @@ class window(QMainWindow):
             
             self.console(f"Данные получены. Количество точек: {len(self.cor_X_File_1D)}")
             
-            # Пытаемся загрузить обученную модель
-            if self.load_trained_model():
-                self.console("Обученная модель загружена")
-                # Применяем модель для очистки данных
+            # Проверяем, есть ли уже обученная модель в памяти
+            if self.is_model_trained and self.neural_network is not None:
+                self.console(f"Используем модель из памяти (переход {self.ai_transition_type})")
                 self.apply_neural_network()
             else:
-                self.console("Модель не найдена. Используйте кнопку 'AI Training' для обучения")
+                # Диалог выбора типа модели
+                msg_box = QtWidgets.QMessageBox()
+                msg_box.setWindowTitle("Выбор модели")
+                msg_box.setText("Выберите тип модели для загрузки:")
+                
+                ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+                cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                
+                msg_box.exec()
+                clicked_button = msg_box.clickedButton()
+                
+                if clicked_button == ka_button:
+                    self.ai_transition_type = "Ka"
+                elif clicked_button == kb_button:
+                    self.ai_transition_type = "Kb"
+                else:
+                    self.console("Операция отменена")
+                    return
+                
+                # Обновляем пути к файлам с учетом типа перехода
+                self.model_path = os.path.join(self.ai_folder, f"trained_spectrum_model_{self.ai_transition_type}.h5")
+                self.model_info_path = os.path.join(self.ai_folder, f"model_info_{self.ai_transition_type}.json")
+                
+                # Пытаемся загрузить обученную модель из файла
+                if self.load_trained_model():
+                    self.console(f"Модель для перехода {self.ai_transition_type} загружена из файла")
+                    self.apply_neural_network()
+                else:
+                    self.console(f"Модель для перехода {self.ai_transition_type} не найдена. Используйте кнопку 'AI Training' для обучения")
                 
         except Exception as e:
             self.console(f"Ошибка при обработке данных с помощью ИИ: {str(e)}", True)
@@ -1703,11 +1737,35 @@ class window(QMainWindow):
                 self.console("Сначала просуммируйте данные")
                 return
                 
+            # Диалог выбора типа перехода
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setWindowTitle("Выбор типа перехода")
+            msg_box.setText("Выберите тип перехода для обучения модели:")
+            
+            ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+            
+            msg_box.exec()
+            clicked_button = msg_box.clickedButton()
+            
+            if clicked_button == ka_button:
+                self.ai_transition_type = "Ka"
+            elif clicked_button == kb_button:
+                self.ai_transition_type = "Kb"
+            else:
+                self.console("Обучение отменено")
+                return
+                
             # Сохраняем данные для обучения
             self.ai_x_data = self.cor_X_File_1D
             self.ai_y_data = self.cor_Y_File_1D
             
-            self.console(f"Начинаем обучение нейронной сети на {len(self.cor_X_File_1D)} точках")
+            # Обновляем пути к файлам с учетом типа перехода
+            self.model_path = os.path.join(self.ai_folder, f"trained_spectrum_model_{self.ai_transition_type}.h5")
+            self.model_info_path = os.path.join(self.ai_folder, f"model_info_{self.ai_transition_type}.json")
+            
+            self.console(f"Начинаем обучение нейронной сети для перехода {self.ai_transition_type} на {len(self.cor_X_File_1D)} точках")
             
             # Запускаем обучение
             self.train_neural_network()
@@ -1820,24 +1878,51 @@ class window(QMainWindow):
             self.plot_widget_resoult.clear()
             self.plot_widget_resoult.addItem(self.text_item_result)
             
-            # Строим исходные данные
+            # Вычисляем смещение для разделения графиков
+            y_max = max(np.max(self.ai_y_data), np.max(self.ai_y_denoised))
+            y_min = min(np.min(self.ai_y_data), np.min(self.ai_y_denoised))
+            y_range = y_max - y_min
+            offset = y_range * 0.3  # 30% от диапазона для смещения
+            
+            # Строим исходные данные (сверху)
+            y_original_offset = self.ai_y_data + offset
             self.plot_widget_resoult.plot(
-                self.ai_x_data, self.ai_y_data,
+                self.ai_x_data, y_original_offset,
                 pen='b', name='Исходные данные',
                 symbol='o', symbolSize=3, symbolBrush='b'
             )
             
-            # Строим очищенные данные
+            # Строим очищенные данные (снизу)
+            y_denoised_offset = self.ai_y_denoised - offset
             self.plot_widget_resoult.plot(
-                self.ai_x_data, self.ai_y_denoised,
+                self.ai_x_data, y_denoised_offset,
                 pen='r', name='Очищенные данные',
                 symbol='s', symbolSize=3, symbolBrush='r'
             )
             
+            # Добавляем разделительную линию
+            middle_y = (y_max + y_min) / 2
+            x_range = max(self.ai_x_data) - min(self.ai_x_data)
+            self.plot_widget_resoult.plot(
+                [min(self.ai_x_data) - x_range * 0.1, max(self.ai_x_data) + x_range * 0.1],
+                [middle_y, middle_y],
+                pen=pg.mkPen('g', style=QtCore.Qt.PenStyle.DashLine),
+                name='Разделитель'
+            )
+            
+            # Добавляем подписи
+            text_original = pg.TextItem(text="Исходные данные", anchor=(0.5, 0.5))
+            text_original.setPos(min(self.ai_x_data), y_max + offset + y_range * 0.1)
+            self.plot_widget_resoult.addItem(text_original)
+            
+            text_denoised = pg.TextItem(text="Очищенные данные", anchor=(0.5, 0.5))
+            text_denoised.setPos(min(self.ai_x_data), y_min - offset - y_range * 0.1)
+            self.plot_widget_resoult.addItem(text_denoised)
+            
             # Добавляем легенду
             self.plot_widget_resoult.addLegend(offset=(30, 30))
             
-            self.console("График обновлен: синий - исходные данные, красный - очищенные")
+            self.console("График обновлен: исходные данные сверху, очищенные снизу")
             
         except Exception as e:
             self.console(f"Ошибка при построении графика: {str(e)}", True)
@@ -1861,6 +1946,18 @@ class window(QMainWindow):
                     json.dump(model_info, f)
                 
                 self.console(f"Модель сохранена в {self.model_path}")
+                self.console(f"Информация о модели сохранена в {self.model_info_path}")
+                
+                # Проверяем, что файлы действительно созданы
+                if os.path.exists(self.model_path):
+                    self.console("Файл модели успешно создан")
+                else:
+                    self.console("ОШИБКА: Файл модели не создан", True)
+                    
+                if os.path.exists(self.model_info_path):
+                    self.console("Файл информации о модели успешно создан")
+                else:
+                    self.console("ОШИБКА: Файл информации о модели не создан", True)
                 
         except Exception as e:
             self.console(f"Ошибка при сохранении модели: {str(e)}", True)
