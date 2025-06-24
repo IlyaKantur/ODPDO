@@ -15,6 +15,9 @@ import scipy.interpolate as interpolate
 from scipy.optimize import curve_fit
 from scipy.special import voigt_profile
 
+import matplotlib.pyplot as plt
+import xraydb
+
 class window(QMainWindow):
     def __init__(self):
         super(window, self).__init__()
@@ -662,6 +665,17 @@ class window(QMainWindow):
         
         # Делаем первый символ заглавным, остальные строчными
         element = element_text[0].upper() + element_text[1:].lower()
+
+        # Обращение к базе данных
+        self.console(f'# Atomic Symbol: {element}')
+        self.console(f'# Atomic Number: {xraydb.atomic_number(element)}')
+        self.console(f'# Atomic Moss:   {xraydb.atomic_mass(element):.4f}')
+
+        self.console('# X-ray Lines:')
+        self.console('#  Line     Energy  Intensity       Levels')
+        for key, val in xraydb.xray_lines(element).items():
+            levels = '%s-%s' % (val.initial_level, val.final_level)
+            self.console(f'{key} {val.energy} {val.intensity} {levels}')
         
         # Формируем путь к папке и файлу
         folder_path = os.path.join('Base', element)
