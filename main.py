@@ -77,6 +77,8 @@ class window(QMainWindow):
         self.ui.AddSpectra_pushButton.clicked.connect(self.addSpectra_pushButton)
         self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
 
+        self.ui.Kristal_action.triggered.connect(self.kristalAnalization_pushButton)
+
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
         self.ui.graphResoult_gridLayout.addWidget(self.plot_widget_resoult)
@@ -657,6 +659,7 @@ class window(QMainWindow):
 
     def search_pushButtom(self):
         # Получаем значение из поля Element_lineEdit
+        energy_values = {} 
         element_text = self.ui.Element_lineEdit.text().strip()
 
         if element_text == '':
@@ -674,85 +677,56 @@ class window(QMainWindow):
         self.console('# X-ray Lines:')
         self.console('#  Line     Energy  Intensity       Levels')
         for key, val in xraydb.xray_lines(element).items():
+            energy_values[key] = val.energy  
             levels = '%s-%s' % (val.initial_level, val.final_level)
             self.console(f'{key} {val.energy} {val.intensity} {levels}')
         
-        # Формируем путь к папке и файлу
-        folder_path = os.path.join('Base', element)
-        file_path = os.path.join(folder_path, f"{element}.dat")
-        
-        # Проверяем существование папки и файла
-        if not os.path.exists(folder_path):
-            self.console(f"Папка {folder_path} не найдена", True)
-            return
-            
-        if not os.path.exists(file_path):
-            self.console(f"Файл {file_path} не найден", True)
-            return
-        
         try:
-            # Открываем файл и читаем последнюю строку
-            with open(file_path, 'r') as file:
-                lines = file.readlines()
-                
-                if not lines:
-                    self.console(f"Файл {file_path} пуст", True)
-                    return
-                last_line = lines[-1].strip()
-                
-                # Разбиваем строку по символу "/"
-                parts = last_line.split('/')
-                
-                if len(parts) < 2:
-                    self.console(f"Неверный формат данных в файле {file_path}", True)
-                    return
-                
-                # Получаем числа из второй части
-                try:
-                    energy_values = [float(val) for val in parts[1].strip().split()]
+          
+            # Создаем диалоговое окно для выбора линии
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setWindowTitle("Выбор линии")
+            msg_box.setText("Какая линия?")
+                    
+            # Добавляем кнопки Ka и Kb
+            ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                    
+            # Показываем диалоговое окно и ждем ответа
+            msg_box.exec()
+                    
+            clicked_button = msg_box.clickedButton()
+                    
+            # Устанавливаем значения в зависимости от выбора пользователя
+            if clicked_button == ka_button:
+                self.ui.E_one_doubleSpinBox.setValue(energy_values['Ka2'])
+                self.ui.E_two_doubleSpinBox.setValue(energy_values['Ka1'])
+                self.transition = "Ka"
+                self.console(f"Установлены значения для линии Ka: {energy_values['Ka2']}, {energy_values['Ka1']}")
+            elif clicked_button == kb_button:
+                self.ui.E_one_doubleSpinBox.setValue(energy_values['Kb1'])
+                self.ui.E_two_doubleSpinBox.setValue(energy_values['Kb5'])
+                self.transition = "Kb"
+                self.console(f"Установлены значения для линии Kb: {energy_values['Kb1']}, {energy_values['Kb5']}")
+            else:
+                # Пользователь отменил операцию
+                self.console("Операция отменена")
+                        
+        except ValueError:
+            self.console(ValueError, True)
 
-                    
-                    if len(energy_values) < 5:  # Нам нужно минимум 5 чисел для Ka и Kb
-                        self.console(f"Недостаточно значений в файле {file_path}", True)
-                        return
-                        
-                    # Создаем диалоговое окно для выбора линии
-                    msg_box = QtWidgets.QMessageBox()
-                    msg_box.setWindowTitle("Выбор линии")
-                    msg_box.setText("Какая линия?")
-                    
-                    # Добавляем кнопки Ka и Kb
-                    ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                    kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                    cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
-                    
-                    # Показываем диалоговое окно и ждем ответа
-                    msg_box.exec()
-                    
-                    clicked_button = msg_box.clickedButton()
-                    
-                    # Устанавливаем значения в зависимости от выбора пользователя
-                    if clicked_button == ka_button:
-                        # Для Ka используем первые два числа, умноженные на 1000
-                        self.ui.E_one_doubleSpinBox.setValue(energy_values[0] * 1000)
-                        self.ui.E_two_doubleSpinBox.setValue(energy_values[1] * 1000)
-                        self.transition = "Ka"
-                        self.console(f"Установлены значения для линии Ka: {energy_values[0] * 1000}, {energy_values[1] * 1000}")
-                    elif clicked_button == kb_button:
-                        # Для Kb используем 4-е и 5-е числа, умноженные на 1000
-                        self.ui.E_one_doubleSpinBox.setValue(energy_values[3] * 1000)
-                        self.ui.E_two_doubleSpinBox.setValue(energy_values[4] * 1000)
-                        self.transition = "Kb"
-                        self.console(f"Установлены значения для линии Kb: {energy_values[3] * 1000}, {energy_values[4] * 1000}")
-                    else:
-                        # Пользователь отменил операцию
-                        self.console("Операция отменена")
-                        
-                except ValueError:
-                    self.console(f"Ошибка при чтении числовых значений из файла {file_path}", True)
-                    
-        except Exception as e:
-            self.console(f"Ошибка при обработке файла {file_path}: {str(e)}", True)
+    def kristalAnalization_pushButton(self):
+        # Создаем диалоговое окно для расчета угра
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Расчет угла")
+        dialog.setModal(True)
+
+        # Создаем вертикальный layout
+        layout = QtWidgets.QVBoxLayout()
+
+        
+        
 
     def calibration_pushButton(self):
         # Получаем значения из полей
@@ -1657,6 +1631,7 @@ class window(QMainWindow):
                         
         except Exception as e:
             self.console(f"Ошибка при обновлении легенды: {str(e)}", True)
+
 
 
 app = QtWidgets.QApplication([])
