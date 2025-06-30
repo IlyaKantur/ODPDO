@@ -725,8 +725,40 @@ class window(QMainWindow):
         # Создаем вертикальный layout
         layout = QtWidgets.QVBoxLayout()
 
+        # Создаем горизонтальный layout для ввода параметров расчета
+        search_layout = QtWidgets.QHBoxLayout()
+
+        # Поле ввода названия элемента
+        element_lineEdit = QtWidgets.QLineEdit(placeholderText="Элемент")
+
+        # Блок с выбором линии
+        line_box = QtWidgets.QFrame()
+        line_box.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        line_box_layout = QtWidgets.QHBoxLayout()
+        line_radioButton_Ka = QtWidgets.QRadioButton("Ka")
+        line_radioButton_Kb = QtWidgets.QRadioButton("Kb")
+        line_radioButton_Ka.toggled.connect(self.line_radioButton_toggled)
+        line_radioButton_Kb.toggled.connect(self.line_radioButton_toggled)
+        line_box_layout.addWidget(line_radioButton_Ka)
+        line_box_layout.addWidget(line_radioButton_Kb)
+        line_box.setLayout(line_box_layout)
+
+        # Выбор решетки
+
+        search_layout.addWidget(element_lineEdit)
+        search_layout.addWidget(line_box)
+
+        layout.addLayout(search_layout)
+        dialog.setLayout(layout)
+        result = dialog.exec()
         
-        
+    def line_radioButton_toggled(self):
+        if self.line_radioButton_Ka.isChecked():
+            self.line_radioButton_Ka.setChecked(True)
+            self.line_radioButton_Kb.setChecked(False)
+        elif self.line_radioButton_Kb.isChecked():
+            self.line_radioButton_Kb.setChecked(True)
+            self.line_radioButton_Ka.setChecked(False)
 
     def calibration_pushButton(self):
         # Получаем значения из полей
