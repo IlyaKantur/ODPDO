@@ -726,39 +726,138 @@ class window(QMainWindow):
         layout = QtWidgets.QVBoxLayout()
 
         # Создаем горизонтальный layout для ввода параметров расчета
+        search_box = QtWidgets.QFrame()
+        search_box.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         search_layout = QtWidgets.QHBoxLayout()
+        search_box.setLayout(search_layout)
 
         # Поле ввода названия элемента
         element_lineEdit = QtWidgets.QLineEdit(placeholderText="Элемент")
+        element_lineEdit.setMaximumWidth(100)
 
         # Блок с выбором линии
-        line_box = QtWidgets.QFrame()
-        line_box.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
-        line_box_layout = QtWidgets.QHBoxLayout()
+        line_radioButton_group = QtWidgets.QButtonGroup()
         line_radioButton_Ka = QtWidgets.QRadioButton("Ka")
         line_radioButton_Kb = QtWidgets.QRadioButton("Kb")
-        line_radioButton_Ka.toggled.connect(self.line_radioButton_toggled)
-        line_radioButton_Kb.toggled.connect(self.line_radioButton_toggled)
-        line_box_layout.addWidget(line_radioButton_Ka)
-        line_box_layout.addWidget(line_radioButton_Kb)
-        line_box.setLayout(line_box_layout)
-
+        line_radioButton_group.addButton(line_radioButton_Ka)
+        line_radioButton_group.addButton(line_radioButton_Kb)
+        # line_radioButton_Ka.toggled.connect(self.line_radioButton_toggled)
+        # line_radioButton_Kb.toggled.connect(self.line_radioButton_toggled)
+        
         # Выбор решетки
+        grid_comboBox = QtWidgets.QComboBox()
+        grid_comboBox.setEditable(True)
+        grid_comboBox.setMinimumWidth(65)
+        grid_comboBox.addItem("1.17")
+        grid_comboBox.addItem("3.33")
+
+        # Ввод радиуса
+        radius_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус")
+        radius_lineEdit.setMaximumWidth(100)
+
+        # Кнопка поиска
+        search_kristal_button = QtWidgets.QPushButton("🔍")
+        search_kristal_button.setFixedWidth(40)
 
         search_layout.addWidget(element_lineEdit)
-        search_layout.addWidget(line_box)
+        search_layout.addWidget(line_radioButton_Ka)
+        search_layout.addWidget(line_radioButton_Kb)
+        search_layout.addWidget(grid_comboBox)
+        search_layout.addWidget(radius_lineEdit)
+        search_layout.addWidget(search_kristal_button)
 
-        layout.addLayout(search_layout)
+        # Создаем горизонтальный layout для результатов расчета
+        first_line_layout = QtWidgets.QHBoxLayout()
+        second_line_layout = QtWidgets.QHBoxLayout()
+
+        # Заполняем layout для первой точки
+        first_line_layout.addWidget(QtWidgets.QLabel("1"))
+        first_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 1 пика")
+        first_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 1 пика")
+        first_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 1 пика")
+        first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 1 пика")
+
+        # Заполняем layout для второй точки
+        second_line_layout.addWidget(QtWidgets.QLabel("2"))
+        second_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 2 пика")
+        second_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 2 пика")
+        second_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 2 пика")
+        second_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 2 пика")
+
+        # Список всех QLineEdit, которым нужно задать ширину
+        line_edits = [
+            first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, second_line_E_lineEdit, second_line_l_lineEdit, second_line_d_lineEdit, second_line_r_lineEdit
+        ]
+
+        # Задаём максимальную ширину всем сразу
+        for edit in line_edits:
+            edit.setMaximumWidth(100)
+            edit.setReadOnly(True)
+
+        first_line_layout.addWidget(first_line_E_lineEdit)
+        first_line_layout.addWidget(first_line_l_lineEdit)
+        first_line_layout.addWidget(first_line_d_lineEdit)
+        first_line_layout.addWidget(first_line_r_lineEdit)
+        second_line_layout.addWidget(second_line_E_lineEdit)
+        second_line_layout.addWidget(second_line_l_lineEdit)
+        second_line_layout.addWidget(second_line_d_lineEdit)
+        second_line_layout.addWidget(second_line_r_lineEdit)
+
+        layout.addWidget(search_box)
+        layout.addLayout(first_line_layout)
+        layout.addLayout(second_line_layout)
         dialog.setLayout(layout)
+
+        def search_clicked():
+            con = True
+            if not line_radioButton_Ka.isChecked() and not line_radioButton_Kb.isChecked():
+                self.console("Выберите линию", True)
+                con = False
+            if not element_lineEdit.text():
+                self.console("Введите назнание", True)
+                con = False
+            if not grid_comboBox.currentText():
+                self.console("Выберите решетку", True)
+                con = False
+            if not radius_lineEdit.text():
+                self.console("Введите радиус", True)
+                con = False
+            if con:
+                # Получаем значение из поля Element_lineEdit
+                energy_values = {}
+                l = {}
+                chord = {}
+                angle = {}
+
+                element_text = element_lineEdit.text().strip()
+                element = element_text[0].upper() + element_text[1:].lower()
+                
+                for key, val in xraydb.xray_lines(element).items():
+                    energy_values[key] = val.energy 
+                    l[key] = 4.136 * 10^(-7) * 3 / val.energy
+                    angle[key] = np.arcsin(n * l[key] / (2 * float(grid_comboBox.currentText())))
+                    chord[key] = radius_lineEdit.text() * np.sin(angle[key])
+                    
+                self.console(f"Элемент: {element}", False)
+                self.console(f"Линия: {line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()}", False)
+                self.console(f"Решетка: {grid_comboBox.currentText()}", False)
+                self.console(f"Радиус: {radius_lineEdit.text()}", False)
+                self.console(f"Энергия: {energy_values}", False)
+                
+
+        search_kristal_button.clicked.connect(search_clicked)
+        element_lineEdit.returnPressed.connect(search_clicked)
+
         result = dialog.exec()
-        
-    def line_radioButton_toggled(self):
-        if self.line_radioButton_Ka.isChecked():
-            self.line_radioButton_Ka.setChecked(True)
-            self.line_radioButton_Kb.setChecked(False)
-        elif self.line_radioButton_Kb.isChecked():
-            self.line_radioButton_Kb.setChecked(True)
-            self.line_radioButton_Ka.setChecked(False)
+
+
+    # def line_radioButton_toggled(self):
+    #     if self.line_radioButton_Ka.isChecked():
+    #         self.line_radioButton_Ka.setChecked(True)
+    #         self.line_radioButton_Kb.setChecked(False)
+    #     elif self.line_radioButton_Kb.isChecked():
+    #         self.line_radioButton_Kb.setChecked(True)
+    #         self.line_radioButton_Ka.setChecked(False)
 
     def calibration_pushButton(self):
         # Получаем значения из полей
