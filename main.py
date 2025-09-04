@@ -840,6 +840,7 @@ class window(QMainWindow):
                 angle_deg = {}
                 d = float(grid_comboBox.currentText())
                 line = line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()
+                n_diffraction = 0
 
                 element_text = element_lineEdit.text().strip()
                 element = element_text[0].upper() + element_text[1:].lower()
@@ -855,12 +856,14 @@ class window(QMainWindow):
                                 chord[key] = np.round(float(radius_lineEdit.text()) * np.sin(angle[key]), 1)
                                 if chord[key] > 80 and chord[key] < 115:
                                     if key.find("1") != -1:
+                                        n_diffraction = i
                                         first_line_E_lineEdit.setText(str(energy_values[key]))
                                         first_line_l_lineEdit.setText(str(l[key]))
                                         first_line_d_lineEdit.setText(str(angle_deg[key]))
                                         first_line_r_lineEdit.setText(str(chord[key]))
                                         first_line_n_lineEdit.setText(str(i))
                                     else:
+                                        n_diffraction = i
                                         second_line_E_lineEdit.setText(str(energy_values[key]))
                                         second_line_l_lineEdit.setText(str(l[key]))
                                         second_line_d_lineEdit.setText(str(angle_deg[key]))
@@ -875,6 +878,7 @@ class window(QMainWindow):
                 self.console(f"Д. волны: "+ str({k : float(v) for k,v in l.items()}), False)
                 self.console(f"Угол: "+ str({k : float(v) for k,v in angle_deg.items()}), False)
                 self.console(f"Хорда: "+ str({k : float(v) for k,v in chord.items()}), False)
+                self.console(f"Пор. дифр.: {n_diffraction}", False)
                 
 
         search_kristal_button.clicked.connect(search_clicked)
