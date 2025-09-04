@@ -771,42 +771,47 @@ class window(QMainWindow):
         first_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 1 пика")
         first_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 1 пика")
         first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 1 пика")
+        first_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText = "Порядок дифракции")
 
         # Заполняем layout для второй точки
         second_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 2 пика")
         second_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 2 пика")
         second_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 2 пика")
         second_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 2 пика")
+        second_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText = "Порядок дифракции")
 
         # Список всех QLineEdit, которым нужно задать ширину
         line_edits = [
-            first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, second_line_E_lineEdit, second_line_l_lineEdit, second_line_d_lineEdit, second_line_r_lineEdit
+            first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, first_line_n_lineEdit, second_line_E_lineEdit, second_line_l_lineEdit, second_line_d_lineEdit, second_line_r_lineEdit, second_line_n_lineEdit
         ]
 
         # Задаём максимальную ширину всем сразу
         for edit in line_edits:
-            edit.setMaximumWidth(100)
+            edit.setMaximumWidth(80)
             edit.setReadOnly(True)
 
         # Сетка
         grid_layout = QtWidgets.QGridLayout()
         grid_layout.addWidget(QtWidgets.QLabel("№", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 0)
         grid_layout.addWidget(QtWidgets.QLabel("Энергия (эВ)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 1)
-        grid_layout.addWidget(QtWidgets.QLabel("Длина волны (Å)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 2)
+        grid_layout.addWidget(QtWidgets.QLabel("Д. волны (Å)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 2)
         grid_layout.addWidget(QtWidgets.QLabel("Угол (град)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 3)
         grid_layout.addWidget(QtWidgets.QLabel("Радиус (см)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 4)
+        grid_layout.addWidget(QtWidgets.QLabel("Пор. дифр.", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 5)
 
         grid_layout.addWidget(QtWidgets.QLabel("1"), 1, 0)
         grid_layout.addWidget(first_line_E_lineEdit, 1, 1)
         grid_layout.addWidget(first_line_l_lineEdit, 1, 2)
         grid_layout.addWidget(first_line_d_lineEdit, 1, 3)
         grid_layout.addWidget(first_line_r_lineEdit, 1, 4)
+        grid_layout.addWidget(first_line_n_lineEdit, 1, 5)
 
         grid_layout.addWidget(QtWidgets.QLabel("2"), 2, 0)
         grid_layout.addWidget(second_line_E_lineEdit, 2, 1)
         grid_layout.addWidget(second_line_l_lineEdit, 2, 2)
         grid_layout.addWidget(second_line_d_lineEdit, 2, 3)
         grid_layout.addWidget(second_line_r_lineEdit, 2, 4)
+        grid_layout.addWidget(second_line_n_lineEdit, 2, 5)
 
         layout.addWidget(search_box)
         layout.addLayout(grid_layout)
@@ -854,11 +859,13 @@ class window(QMainWindow):
                                         first_line_l_lineEdit.setText(str(l[key]))
                                         first_line_d_lineEdit.setText(str(angle_deg[key]))
                                         first_line_r_lineEdit.setText(str(chord[key]))
+                                        first_line_n_lineEdit.setText(str(i))
                                     else:
                                         second_line_E_lineEdit.setText(str(energy_values[key]))
                                         second_line_l_lineEdit.setText(str(l[key]))
                                         second_line_d_lineEdit.setText(str(angle_deg[key]))
                                         second_line_r_lineEdit.setText(str(chord[key]))
+                                        second_line_n_lineEdit.setText(str(i))
                                     break
                 
                 self.console(f"Элемент: {element}", False)
