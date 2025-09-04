@@ -766,19 +766,13 @@ class window(QMainWindow):
         search_layout.addWidget(radius_lineEdit)
         search_layout.addWidget(search_kristal_button)
 
-        # Создаем горизонтальный layout для результатов расчета
-        first_line_layout = QtWidgets.QHBoxLayout()
-        second_line_layout = QtWidgets.QHBoxLayout()
-
         # Заполняем layout для первой точки
-        first_line_layout.addWidget(QtWidgets.QLabel("1"))
         first_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 1 пика")
         first_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 1 пика")
         first_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 1 пика")
         first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 1 пика")
 
         # Заполняем layout для второй точки
-        second_line_layout.addWidget(QtWidgets.QLabel("2"))
         second_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 2 пика")
         second_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 2 пика")
         second_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 2 пика")
@@ -794,18 +788,28 @@ class window(QMainWindow):
             edit.setMaximumWidth(100)
             edit.setReadOnly(True)
 
-        first_line_layout.addWidget(first_line_E_lineEdit)
-        first_line_layout.addWidget(first_line_l_lineEdit)
-        first_line_layout.addWidget(first_line_d_lineEdit)
-        first_line_layout.addWidget(first_line_r_lineEdit)
-        second_line_layout.addWidget(second_line_E_lineEdit)
-        second_line_layout.addWidget(second_line_l_lineEdit)
-        second_line_layout.addWidget(second_line_d_lineEdit)
-        second_line_layout.addWidget(second_line_r_lineEdit)
+        # Сетка
+        grid_layout = QtWidgets.QGridLayout()
+        grid_layout.addWidget(QtWidgets.QLabel("№", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 0)
+        grid_layout.addWidget(QtWidgets.QLabel("Энергия (эВ)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 1)
+        grid_layout.addWidget(QtWidgets.QLabel("Длина волны (Å)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 2)
+        grid_layout.addWidget(QtWidgets.QLabel("Угол (град)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 3)
+        grid_layout.addWidget(QtWidgets.QLabel("Радиус (см)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 4)
+
+        grid_layout.addWidget(QtWidgets.QLabel("1"), 1, 0)
+        grid_layout.addWidget(first_line_E_lineEdit, 1, 1)
+        grid_layout.addWidget(first_line_l_lineEdit, 1, 2)
+        grid_layout.addWidget(first_line_d_lineEdit, 1, 3)
+        grid_layout.addWidget(first_line_r_lineEdit, 1, 4)
+
+        grid_layout.addWidget(QtWidgets.QLabel("2"), 2, 0)
+        grid_layout.addWidget(second_line_E_lineEdit, 2, 1)
+        grid_layout.addWidget(second_line_l_lineEdit, 2, 2)
+        grid_layout.addWidget(second_line_d_lineEdit, 2, 3)
+        grid_layout.addWidget(second_line_r_lineEdit, 2, 4)
 
         layout.addWidget(search_box)
-        layout.addLayout(first_line_layout)
-        layout.addLayout(second_line_layout)
+        layout.addLayout(grid_layout)
         dialog.setLayout(layout)
 
         def search_clicked():
@@ -828,21 +832,42 @@ class window(QMainWindow):
                 l = {}
                 chord = {}
                 angle = {}
+                angle_deg = {}
+                d = float(grid_comboBox.currentText())
+                line = line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()
 
                 element_text = element_lineEdit.text().strip()
                 element = element_text[0].upper() + element_text[1:].lower()
                 
                 for key, val in xraydb.xray_lines(element).items():
-                    energy_values[key] = val.energy 
-                    l[key] = 4.136 * 10^(-7) * 3 / val.energy
-                    angle[key] = np.arcsin(n * l[key] / (2 * float(grid_comboBox.currentText())))
-                    chord[key] = radius_lineEdit.text() * np.sin(angle[key])
-                    
+                    if (line == "Ka" and (key == "Ka1" or key == "Ka2")) or (line == "Kb" and (key == "Kb1" or key == "Kb5")):
+                        energy_values[key] = val.energy 
+                        l[key] = np.round(12398.41984 / val.energy, 4)
+                        for i in [1, 2, 3]:
+                            angle[key] = np.round(np.arcsin(i * l[key] / (2 * d)), 3)
+                            angle_deg[key] = np.round(np.degrees(angle[key]), 1)
+                            if angle_deg[key] > 30 and angle_deg[key] < 60:
+                                chord[key] = np.round(float(radius_lineEdit.text()) * np.sin(angle[key]), 1)
+                                if chord[key] > 80 and chord[key] < 115:
+                                    if key.find("1") != -1:
+                                        first_line_E_lineEdit.setText(str(energy_values[key]))
+                                        first_line_l_lineEdit.setText(str(l[key]))
+                                        first_line_d_lineEdit.setText(str(angle_deg[key]))
+                                        first_line_r_lineEdit.setText(str(chord[key]))
+                                    else:
+                                        second_line_E_lineEdit.setText(str(energy_values[key]))
+                                        second_line_l_lineEdit.setText(str(l[key]))
+                                        second_line_d_lineEdit.setText(str(angle_deg[key]))
+                                        second_line_r_lineEdit.setText(str(chord[key]))
+                                    break
+                
                 self.console(f"Элемент: {element}", False)
                 self.console(f"Линия: {line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()}", False)
                 self.console(f"Решетка: {grid_comboBox.currentText()}", False)
-                self.console(f"Радиус: {radius_lineEdit.text()}", False)
                 self.console(f"Энергия: {energy_values}", False)
+                self.console(f"Д. волны: "+ str({k : float(v) for k,v in l.items()}), False)
+                self.console(f"Угол: "+ str({k : float(v) for k,v in angle_deg.items()}), False)
+                self.console(f"Хорда: "+ str({k : float(v) for k,v in chord.items()}), False)
                 
 
         search_kristal_button.clicked.connect(search_clicked)
