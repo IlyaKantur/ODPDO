@@ -391,7 +391,7 @@ class window(QMainWindow):
 
     def start_observation_mode(self):
         """Запуск режима наблюдения"""
-        self.data_files = []
+        self.reset_state()
         # Запрашиваем папку для наблюдения
         folder_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Выберите папку для наблюдения")
         if not folder_path:
@@ -405,12 +405,61 @@ class window(QMainWindow):
         if update_period <= 0:
             self.console("Неверный период обновления", True)
             return
-            
-        # Запускаем наблюдение
-        self.processed_files.clear()  # Очищаем список обработанных файлов
+
         self.start_observation(update_period)
         # # Выполняем первичное суммирование
         # self.process_files()
+
+    def reset_state(self):
+        """Полный сброс состояния данных и флагов"""
+        # Останавливаем наблюдение и сбрасываем связанные флаги
+        if hasattr(self, 'observation_timer'):
+            self.observation_timer.stop()
+        self.observation_folder = ""
+        self.processed_files = []
+        self.observation_paused = False
+
+        # Сбрасываем данные и служебные коллекции
+        self.Folder_path_1D = ""
+        self.Name_File_1D = []
+        self.File_path_1D = []
+        self.data_files = []
+        self.cor_X_File_1D = []
+        self.cor_Y_File_1D = []
+        self.mas_sum_1D = []
+        self.mas_new_sum_1D = []
+        self.table_X = []
+        self.table_Y = []
+
+        # Сбрасываем флаги обработки
+        self.calibrated = False
+        self.smoothed = False
+        self.count_smoothed = 0
+        self.transition = None
+
+        # Сбрасываем оригинальные массивы и результаты
+        self.original_X = []
+        self.original_Y = []
+        self.fwhm_results = []
+
+        # Очищаем UI-таблицы
+        self.ui.table_tableWidget.clear()
+        self.ui.table_tableWidget.setRowCount(0)
+        self.ui.CoordinatTable_tableWidget.clear()
+        self.ui.CoordinatTable_tableWidget.setRowCount(0)
+        self.ui.Coordinat_tableWidget.clear()
+        self.ui.Coordinat_tableWidget.setRowCount(0)
+
+        # Очищаем графики и возвращаем текстовые элементы
+        self.plot_widget_graphs.clear()
+        self.plot_widget_graphs.addItem(self.text_item_graphs)
+        self.plot_widget_table.clear()
+        self.plot_widget_table.addItem(self.text_item_table)
+        self.plot_widget_resoult.clear()
+        self.plot_widget_resoult.addItem(self.text_item_result)
+
+        # Сбрасываем стиль кнопки суммирования
+        self.ui.sum_pushButton.setStyleSheet("")
 
     def sumData(self, y, sum_points):
         """Суммирование данных с использованием скользящего окна"""
