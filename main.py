@@ -919,15 +919,18 @@ class window(QMainWindow):
                                         second_line_r_lineEdit.setText(str(chord[key]))
                                         second_line_n_lineEdit.setText(str(i))
                                     break
-                
-                self.console(f"Элемент: {element}", False)
-                self.console(f"Линия: {line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()}", False)
-                self.console(f"Решетка: {grid_comboBox.currentText()}", False)
-                self.console(f"Энергия: {energy_values}", False)
-                self.console(f"Д. волны: "+ str({k : float(v) for k,v in l.items()}), False)
-                self.console(f"Угол: "+ str({k : float(v) for k,v in angle_deg.items()}), False)
-                self.console(f"Хорда: "+ str({k : float(v) for k,v in chord.items()}), False)
-                self.console(f"Пор. дифр.: {n_diffraction}", False)
+                if n_diffraction == 0:
+                    self.console("Не найдено подходящих параметров", True)
+                    return
+                else:
+                    self.console(f"Элемент: {element}", False)
+                    self.console(f"Линия: {line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()}", False)
+                    self.console(f"Решетка: {grid_comboBox.currentText()}", False)
+                    self.console(f"Энергия: {energy_values}", False)
+                    self.console(f"Д. волны: "+ str({k : float(v) for k,v in l.items()}), False)
+                    self.console(f"Угол: "+ str({k : float(v) for k,v in angle_deg.items()}), False)
+                    self.console(f"Хорда: "+ str({k : float(v) for k,v in chord.items()}), False)
+                    self.console(f"Пор. дифр.: {n_diffraction}", False)
                 
 
         search_kristal_button.clicked.connect(search_clicked)
