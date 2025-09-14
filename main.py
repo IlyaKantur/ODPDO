@@ -799,6 +799,7 @@ class window(QMainWindow):
         grid_comboBox.setMinimumWidth(65)
         grid_comboBox.addItem("1.17")
         grid_comboBox.addItem("3.33")
+        grid_comboBox.addItem("4.24")
 
         # Ввод радиуса
         radius_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус")
@@ -814,6 +815,11 @@ class window(QMainWindow):
         search_layout.addWidget(grid_comboBox)
         search_layout.addWidget(radius_lineEdit)
         search_layout.addWidget(search_kristal_button)
+
+        error_label = QtWidgets.QLabel()
+        error_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        error_label.setObjectName("error_label")
+        error_label.setStyleSheet("color: red;")
 
         # Заполняем layout для первой точки
         first_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 1 пика")
@@ -863,11 +869,13 @@ class window(QMainWindow):
         grid_layout.addWidget(second_line_n_lineEdit, 2, 5)
 
         layout.addWidget(search_box)
+        layout.addWidget(error_label)
         layout.addLayout(grid_layout)
         dialog.setLayout(layout)
 
         def search_clicked():
             con = True
+            error_label.setText("")
             if not line_radioButton_Ka.isChecked() and not line_radioButton_Kb.isChecked():
                 self.console("Выберите линию", True)
                 con = False
@@ -920,6 +928,7 @@ class window(QMainWindow):
                                         second_line_n_lineEdit.setText(str(i))
                                     break
                 if n_diffraction == 0:
+                    error_label.setText("Не найдено подходящих параметров")
                     self.console("Не найдено подходящих параметров", True)
                     return
                 else:
