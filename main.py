@@ -279,9 +279,12 @@ class window(QMainWindow):
                 
                 # Записываем данные
                 file.write("Данные:\n")
-                file.write("X\tY\n")
+                if self.calibrated:
+                    file.write(f"{'Photon energy(eV)':<20}\t{'Intensity(arb. u.)':<20}\n")
+                else:
+                    file.write(f"{'X':<20}\t{'Y':<20}\n")
                 for x, y in zip(self.cor_X_File_1D, self.cor_Y_File_1D):
-                    file.write(f"{x}\t{y}\n")
+                    file.write(f"{x:<20}\t{y:<20}\n")
                 
             self.console(f"Файл сохранен: {file_path}")
             
