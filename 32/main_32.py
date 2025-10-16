@@ -15,6 +15,9 @@ import scipy.interpolate as interpolate
 from scipy.optimize import curve_fit
 from scipy.special import voigt_profile
 
+import matplotlib.pyplot as plt
+import xraydb
+
 class window(QMainWindow):
     def __init__(self):
         super(window, self).__init__()
@@ -73,6 +76,8 @@ class window(QMainWindow):
         self.ui.CancleCoordinat_pushButton.clicked.connect(self.cancleCoordinat_pushButton)
         self.ui.AddSpectra_pushButton.clicked.connect(self.addSpectra_pushButton)
         self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
+
+        self.ui.Kristal_action.triggered.connect(self.kristalAnalization_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -274,9 +279,12 @@ class window(QMainWindow):
                 
                 # Записываем данные
                 file.write("Данные:\n")
-                file.write("X\tY\n")
+                if self.calibrated:
+                    file.write(f"{'Photon energy(eV)':<20}\t{'Intensity(arb. u.)':<20}\n")
+                else:
+                    file.write(f"{'X':<20}\t{'Y':<20}\n")
                 for x, y in zip(self.cor_X_File_1D, self.cor_Y_File_1D):
-                    file.write(f"{x}\t{y}\n")
+                    file.write(f"{x:<20}\t{y:<20}\n")
                 
             self.console(f"Файл сохранен: {file_path}")
             
@@ -386,7 +394,7 @@ class window(QMainWindow):
 
     def start_observation_mode(self):
         """Запуск режима наблюдения"""
-        self.data_files = []
+        self.reset_state()
         # Запрашиваем папку для наблюдения
         folder_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Выберите папку для наблюдения")
         if not folder_path:
@@ -406,6 +414,57 @@ class window(QMainWindow):
         self.start_observation(update_period)
         # Выполняем первичное суммирование
         # self.process_files()
+
+    def reset_state(self):
+        """Полный сброс состояния данных и флагов"""
+        # Останавливаем наблюдение и сбрасываем связанные флаги
+        if hasattr(self, 'observation_timer'):
+            self.observation_timer.stop()
+        self.observation_folder = ""
+        self.processed_files = []
+        self.observation_paused = False
+
+        # Сбрасываем данные и служебные коллекции
+        self.Folder_path_1D = ""
+        self.Name_File_1D = []
+        self.File_path_1D = []
+        self.data_files = []
+        self.cor_X_File_1D = []
+        self.cor_Y_File_1D = []
+        self.mas_sum_1D = []
+        self.mas_new_sum_1D = []
+        self.table_X = []
+        self.table_Y = []
+
+        # Сбрасываем флаги обработки
+        self.calibrated = False
+        self.smoothed = False
+        self.count_smoothed = 0
+        self.transition = None
+
+        # Сбрасываем оригинальные массивы и результаты
+        self.original_X = []
+        self.original_Y = []
+        self.fwhm_results = []
+
+        # Очищаем UI-таблицы
+        self.ui.table_tableWidget.clear()
+        self.ui.table_tableWidget.setRowCount(0)
+        self.ui.CoordinatTable_tableWidget.clear()
+        self.ui.CoordinatTable_tableWidget.setRowCount(0)
+        self.ui.Coordinat_tableWidget.clear()
+        self.ui.Coordinat_tableWidget.setRowCount(0)
+
+        # Очищаем графики и возвращаем текстовые элементы
+        self.plot_widget_graphs.clear()
+        self.plot_widget_graphs.addItem(self.text_item_graphs)
+        self.plot_widget_table.clear()
+        self.plot_widget_table.addItem(self.text_item_table)
+        self.plot_widget_resoult.clear()
+        self.plot_widget_resoult.addItem(self.text_item_result)
+
+        # Сбрасываем стиль кнопки суммирования
+        self.ui.sum_pushButton.setStyleSheet("")
 
     def sumData(self, y, sum_points):
         """Суммирование данных с использованием скользящего окна"""
@@ -615,9 +674,6 @@ class window(QMainWindow):
         # Проверяем близость к точкам
         closest_point = None
         min_distance = float('inf')
-        
-        # if len(data_items) > 1:
-        #     data_items = [data_items[0]]
 
         for item in data_items:
             data_x = item.xData
@@ -657,6 +713,7 @@ class window(QMainWindow):
 
     def search_pushButtom(self):
         # Получаем значение из поля Element_lineEdit
+        energy_values = {}
         element_text = self.ui.Element_lineEdit.text().strip()
 
         if element_text == '':
@@ -666,82 +723,233 @@ class window(QMainWindow):
         # Делаем первый символ заглавным, остальные строчными
         element = element_text[0].upper() + element_text[1:].lower()
         
-        # Формируем путь к папке и файлу
-        folder_path = os.path.join('Base', element)
-        file_path = os.path.join(folder_path, f"{element}.dat")
-        
-        # Проверяем существование папки и файла
-        if not os.path.exists(folder_path):
-            self.console(f"Папка {folder_path} не найдена", True)
-            return
-            
-        if not os.path.exists(file_path):
-            self.console(f"Файл {file_path} не найден", True)
-            return
+       # Обращение к базе данных
+        self.console(f'# Atomic Symbol: {element}')
+        self.console(f'# Atomic Number: {xraydb.atomic_number(element)}')
+        self.console(f'# Atomic Moss:   {xraydb.atomic_mass(element):.4f}')
+
+        self.console('# X-ray Lines:')
+        self.console('#  Line     Energy  Intensity       Levels')
+        for key, val in xraydb.xray_lines(element).items():
+            energy_values[key] = val.energy  
+            levels = '%s-%s' % (val.initial_level, val.final_level)
+            self.console(f'{key} {val.energy} {val.intensity} {levels}')
         
         try:
-            # Открываем файл и читаем последнюю строку
-            with open(file_path, 'r') as file:
-                lines = file.readlines()
-                
-                if not lines:
-                    self.console(f"Файл {file_path} пуст", True)
-                    return
-                last_line = lines[-1].strip()
-                
-                # Разбиваем строку по символу "/"
-                parts = last_line.split('/')
-                
-                if len(parts) < 2:
-                    self.console(f"Неверный формат данных в файле {file_path}", True)
-                    return
-                
-                # Получаем числа из второй части
-                try:
-                    energy_values = [float(val) for val in parts[1].strip().split()]
+            # Создаем диалоговое окно для выбора линии
+            msg_box = QtWidgets.QMessageBox()
+            msg_box.setWindowTitle("Выбор линии")
+            msg_box.setText("Какая линия?")
+                    
+            # Добавляем кнопки Ka и Kb
+            ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                    
+            # Показываем диалоговое окно и ждем ответа
+            msg_box.exec()
+                    
+            clicked_button = msg_box.clickedButton()
+                    
+            # Устанавливаем значения в зависимости от выбора пользователя
+            if clicked_button == ka_button:
+                self.ui.E_one_doubleSpinBox.setValue(energy_values['Ka2'])
+                self.ui.E_two_doubleSpinBox.setValue(energy_values['Ka1'])
+                self.transition = "Ka"
+                self.console(f"Установлены значения для линии Ka: {energy_values['Ka2']}, {energy_values['Ka1']}")
+            elif clicked_button == kb_button:
+                self.ui.E_one_doubleSpinBox.setValue(energy_values['Kb1'])
+                self.ui.E_two_doubleSpinBox.setValue(energy_values['Kb5'])
+                self.transition = "Kb"
+                self.console(f"Установлены значения для линии Kb: {energy_values['Kb1']}, {energy_values['Kb5']}")
+            else:
+                # Пользователь отменил операцию
+                self.console("Операция отменена")
+                        
+        except ValueError:
+            self.console(ValueError, True)
 
-                    
-                    if len(energy_values) < 5:  # Нам нужно минимум 5 чисел для Ka и Kb
-                        self.console(f"Недостаточно значений в файле {file_path}", True)
-                        return
-                        
-                    # Создаем диалоговое окно для выбора линии
-                    msg_box = QtWidgets.QMessageBox()
-                    msg_box.setWindowTitle("Выбор линии")
-                    msg_box.setText("Какая линия?")
-                    
-                    # Добавляем кнопки Ka и Kb
-                    ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                    kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-                    cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
-                    
-                    # Показываем диалоговое окно и ждем ответа
-                    msg_box.exec()
-                    
-                    clicked_button = msg_box.clickedButton()
-                    
-                    # Устанавливаем значения в зависимости от выбора пользователя
-                    if clicked_button == ka_button:
-                        # Для Ka используем первые два числа, умноженные на 1000
-                        self.ui.E_one_doubleSpinBox.setValue(energy_values[0] * 1000)
-                        self.ui.E_two_doubleSpinBox.setValue(energy_values[1] * 1000)
-                        self.transition = "Ka"
-                        self.console(f"Установлены значения для линии Ka: {energy_values[0] * 1000}, {energy_values[1] * 1000}")
-                    elif clicked_button == kb_button:
-                        # Для Kb используем 4-е и 5-е числа, умноженные на 1000
-                        self.ui.E_one_doubleSpinBox.setValue(energy_values[3] * 1000)
-                        self.ui.E_two_doubleSpinBox.setValue(energy_values[4] * 1000)
-                        self.transition = "Kb"
-                        self.console(f"Установлены значения для линии Kb: {energy_values[3] * 1000}, {energy_values[4] * 1000}")
-                    else:
-                        # Пользователь отменил операцию
-                        self.console("Операция отменена")
-                        
-                except ValueError:
-                    self.console(f"Ошибка при чтении числовых значений из файла {file_path}", True)
-                    
-        except Exception as e:
-            self.console(f"Ошибка при обработке файла {file_path}: {str(e)}", True)
+    def kristalAnalization_pushButton(self):
+        # Создаем диалоговое окно для расчета угра
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Расчет угла")
+        dialog.setModal(True)
+
+        # Создаем вертикальный layout
+        layout = QtWidgets.QVBoxLayout()
+
+        # Создаем горизонтальный layout для ввода параметров расчета
+        search_box = QtWidgets.QFrame()
+        search_box.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        search_layout = QtWidgets.QHBoxLayout()
+        search_box.setLayout(search_layout)
+
+        # Поле ввода названия элемента
+        element_lineEdit = QtWidgets.QLineEdit(placeholderText="Элемент")
+        element_lineEdit.setMaximumWidth(100)
+
+        # Блок с выбором линии
+        line_radioButton_group = QtWidgets.QButtonGroup()
+        line_radioButton_Ka = QtWidgets.QRadioButton("Ka")
+        line_radioButton_Kb = QtWidgets.QRadioButton("Kb")
+        line_radioButton_group.addButton(line_radioButton_Ka)
+        line_radioButton_group.addButton(line_radioButton_Kb)
+        # line_radioButton_Ka.toggled.connect(self.line_radioButton_toggled)
+        # line_radioButton_Kb.toggled.connect(self.line_radioButton_toggled)
+        
+        # Выбор решетки
+        grid_comboBox = QtWidgets.QComboBox()
+        grid_comboBox.setEditable(True)
+        grid_comboBox.setMinimumWidth(65)
+        grid_comboBox.addItem("1.17")
+        grid_comboBox.addItem("3.33")
+        grid_comboBox.addItem("4.24")
+
+        # Ввод радиуса
+        radius_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус")
+        radius_lineEdit.setMaximumWidth(100)
+
+        # Кнопка поиска
+        search_kristal_button = QtWidgets.QPushButton("🔍")
+        search_kristal_button.setFixedWidth(40)
+
+        search_layout.addWidget(element_lineEdit)
+        search_layout.addWidget(line_radioButton_Ka)
+        search_layout.addWidget(line_radioButton_Kb)
+        search_layout.addWidget(grid_comboBox)
+        search_layout.addWidget(radius_lineEdit)
+        search_layout.addWidget(search_kristal_button)
+
+        error_label = QtWidgets.QLabel()
+        error_label.setAlignment(QtCore.Qt.AlignCenter)
+        error_label.setObjectName("error_label")
+        error_label.setStyleSheet("color: red;")
+
+        # Заполняем layout для первой точки
+        first_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 1 пика")
+        first_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 1 пика")
+        first_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 1 пика")
+        first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 1 пика")
+        first_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText = "Порядок дифракции")
+
+        # Заполняем layout для второй точки
+        second_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 2 пика")
+        second_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 2 пика")
+        second_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 2 пика")
+        second_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 2 пика")
+        second_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText = "Порядок дифракции")
+
+        # Список всех QLineEdit, которым нужно задать ширину
+        line_edits = [
+            first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, first_line_n_lineEdit, second_line_E_lineEdit, second_line_l_lineEdit, second_line_d_lineEdit, second_line_r_lineEdit, second_line_n_lineEdit
+        ]
+
+        # Задаём максимальную ширину всем сразу
+        for edit in line_edits:
+            edit.setMaximumWidth(80)
+            edit.setReadOnly(True)
+
+        # Сетка
+        grid_layout = QtWidgets.QGridLayout()
+        grid_layout.addWidget(QtWidgets.QLabel("№", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 0)
+        grid_layout.addWidget(QtWidgets.QLabel("Энергия (эВ)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 1)
+        grid_layout.addWidget(QtWidgets.QLabel("Д. волны (Å)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 2)
+        grid_layout.addWidget(QtWidgets.QLabel("Угол (град)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 3)
+        grid_layout.addWidget(QtWidgets.QLabel("Радиус (см)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 4)
+        grid_layout.addWidget(QtWidgets.QLabel("Пор. дифр.", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 5)
+
+        grid_layout.addWidget(QtWidgets.QLabel("1"), 1, 0)
+        grid_layout.addWidget(first_line_E_lineEdit, 1, 1)
+        grid_layout.addWidget(first_line_l_lineEdit, 1, 2)
+        grid_layout.addWidget(first_line_d_lineEdit, 1, 3)
+        grid_layout.addWidget(first_line_r_lineEdit, 1, 4)
+        grid_layout.addWidget(first_line_n_lineEdit, 1, 5)
+
+        grid_layout.addWidget(QtWidgets.QLabel("2"), 2, 0)
+        grid_layout.addWidget(second_line_E_lineEdit, 2, 1)
+        grid_layout.addWidget(second_line_l_lineEdit, 2, 2)
+        grid_layout.addWidget(second_line_d_lineEdit, 2, 3)
+        grid_layout.addWidget(second_line_r_lineEdit, 2, 4)
+        grid_layout.addWidget(second_line_n_lineEdit, 2, 5)
+
+        layout.addWidget(search_box)
+        layout.addWidget(error_label)
+        layout.addLayout(grid_layout)
+        dialog.setLayout(layout)
+
+        def search_clicked():
+            con = True
+            error_label.setText("")
+            if not line_radioButton_Ka.isChecked() and not line_radioButton_Kb.isChecked():
+                self.console("Выберите линию", True)
+                con = False
+            if not element_lineEdit.text():
+                self.console("Введите назнание", True)
+                con = False
+            if not grid_comboBox.currentText():
+                self.console("Выберите решетку", True)
+                con = False
+            if not radius_lineEdit.text():
+                self.console("Введите радиус", True)
+                con = False
+            if con:
+                # Получаем значение из поля Element_lineEdit
+                energy_values = {}
+                l = {}
+                chord = {}
+                angle = {}
+                angle_deg = {}
+                d = float(grid_comboBox.currentText())
+                line = line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()
+                n_diffraction = 0
+
+                element_text = element_lineEdit.text().strip()
+                element = element_text[0].upper() + element_text[1:].lower()
+                
+                for key, val in xraydb.xray_lines(element).items():
+                    if (line == "Ka" and (key == "Ka1" or key == "Ka2")) or (line == "Kb" and (key == "Kb1" or key == "Kb5")):
+                        energy_values[key] = val.energy 
+                        l[key] = np.round(12398.41984 / val.energy, 4)
+                        for i in [1, 2, 3]:
+                            angle[key] = np.round(np.arcsin(i * l[key] / (2 * d)), 3)
+                            angle_deg[key] = np.round(np.degrees(angle[key]), 1)
+                            if angle_deg[key] > 30 and angle_deg[key] < 60:
+                                chord[key] = np.round(float(radius_lineEdit.text()) * np.sin(angle[key]), 1)
+                                if chord[key] > 80 and chord[key] < 115:
+                                    if key.find("1") != -1:
+                                        n_diffraction = i
+                                        first_line_E_lineEdit.setText(str(energy_values[key]))
+                                        first_line_l_lineEdit.setText(str(l[key]))
+                                        first_line_d_lineEdit.setText(str(angle_deg[key]))
+                                        first_line_r_lineEdit.setText(str(chord[key]))
+                                        first_line_n_lineEdit.setText(str(i))
+                                    else:
+                                        n_diffraction = i
+                                        second_line_E_lineEdit.setText(str(energy_values[key]))
+                                        second_line_l_lineEdit.setText(str(l[key]))
+                                        second_line_d_lineEdit.setText(str(angle_deg[key]))
+                                        second_line_r_lineEdit.setText(str(chord[key]))
+                                        second_line_n_lineEdit.setText(str(i))
+                                    break
+                if n_diffraction == 0:
+                    error_label.setText("Не найдено подходящих параметров")
+                    self.console("Не найдено подходящих параметров", True)
+                    return
+                else:
+                    self.console(f"Элемент: {element}", False)
+                    self.console(f"Линия: {line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()}", False)
+                    self.console(f"Решетка: {grid_comboBox.currentText()}", False)
+                    self.console(f"Энергия: {energy_values}", False)
+                    self.console(f"Д. волны: "+ str({k : float(v) for k,v in l.items()}), False)
+                    self.console(f"Угол: "+ str({k : float(v) for k,v in angle_deg.items()}), False)
+                    self.console(f"Хорда: "+ str({k : float(v) for k,v in chord.items()}), False)
+                    self.console(f"Пор. дифр.: {n_diffraction}", False)
+                
+
+        search_kristal_button.clicked.connect(search_clicked)
+        element_lineEdit.returnPressed.connect(search_clicked)
+
+        result = dialog.exec()
 
     def calibration_pushButton(self):
         # Получаем значения из полей

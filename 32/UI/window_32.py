@@ -11,7 +11,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
-class Ui_MainWindow_32(object):
+class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1000, 700)
@@ -414,10 +414,16 @@ class Ui_MainWindow_32(object):
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1000, 21))
         self.menubar.setObjectName("menubar")
+        self.menuHelp = QtWidgets.QMenu(self.menubar)
+        self.menuHelp.setObjectName("menuHelp")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
+        self.Kristal_action = QtWidgets.QAction(MainWindow)
+        self.Kristal_action.setObjectName("Kristal_action")
+        self.menuHelp.addAction(self.Kristal_action)
+        self.menubar.addAction(self.menuHelp.menuAction())
 
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(0)
@@ -466,3 +472,5 @@ class Ui_MainWindow_32(object):
         self.Smooth_pushButton.setText(_translate("MainWindow", "Сгладить"))
         self.label_11.setText(_translate("MainWindow", "<html><head/><body><p>Кал. точек:</p></body></html>"))
         self.CancelSmooth_pushButton.setText(_translate("MainWindow", "Отменить сглаживание"))
+        self.menuHelp.setTitle(_translate("MainWindow", "Help"))
+        self.Kristal_action.setText(_translate("MainWindow", "Расчет угла"))

@@ -950,15 +950,6 @@ class window(QMainWindow):
 
         result = dialog.exec()
 
-
-    # def line_radioButton_toggled(self):
-    #     if self.line_radioButton_Ka.isChecked():
-    #         self.line_radioButton_Ka.setChecked(True)
-    #         self.line_radioButton_Kb.setChecked(False)
-    #     elif self.line_radioButton_Kb.isChecked():
-    #         self.line_radioButton_Kb.setChecked(True)
-    #         self.line_radioButton_Ka.setChecked(False)
-
     def calibration_pushButton(self):
         # Получаем значения из полей
         E_one = self.ui.E_one_doubleSpinBox.value()
@@ -1862,7 +1853,6 @@ class window(QMainWindow):
                         
         except Exception as e:
             self.console(f"Ошибка при обновлении легенды: {str(e)}", True)
-
 
 
 app = QtWidgets.QApplication([])
