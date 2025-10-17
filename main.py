@@ -86,6 +86,7 @@ class window(QMainWindow):
         
         # Подключаем сигнал для обновления координат при наведении
         self.plot_widget_resoult.scene().sigMouseMoved.connect(self.mouse_moved_result)
+        self.plot_widget_resoult.scene().sigMouseClicked.connect(self.mouse_clicked_result)
         
         # Создаем PlotWidget для таблицы
         self.plot_widget_table = pg.PlotWidget()
@@ -93,6 +94,7 @@ class window(QMainWindow):
         self.plot_widget_table.addItem(self.text_item_table)
         self.plot_widget_table.scene().sigMouseMoved.connect(self.mouse_moved_table)
         self.plot_widget_table.getViewBox().setMouseMode(pg.ViewBox.RectMode)
+        self.plot_widget_table.scene().sigMouseClicked.connect(self.mouse_clicked_table)
 
         # Создаем PlotWidget для графиков
         self.plot_widget_graphs = pg.PlotWidget()
@@ -100,6 +102,7 @@ class window(QMainWindow):
         self.plot_widget_graphs.addItem(self.text_item_graphs)
         self.plot_widget_graphs.scene().sigMouseMoved.connect(self.mouse_moved_graphs)
         self.plot_widget_graphs.getViewBox().setMouseMode(pg.ViewBox.RectMode)
+        self.plot_widget_graphs.scene().sigMouseClicked.connect(self.mouse_clicked_graphs)
 
         # Подключаем обработчик события для нажатия на ячейку таблицы
         self.ui.table_tableWidget.cellClicked.connect(self.on_table_cell_clicked)
@@ -647,6 +650,13 @@ class window(QMainWindow):
         self.show_point_coordinates(self.plot_widget_table, pos, self.text_item_table)
     def mouse_moved_graphs(self, pos):
         self.show_point_coordinates(self.plot_widget_graphs, pos, self.text_item_graphs)
+    
+    def mouse_clicked_result(self, evt):
+        self.log_point_coordinates(self.plot_widget_resoult, evt)
+    def mouse_clicked_table(self, evt):
+        self.log_point_coordinates(self.plot_widget_table, evt)
+    def mouse_clicked_graphs(self, evt):
+        self.log_point_coordinates(self.plot_widget_graphs, evt)
           
     def show_point_coordinates(self, plot_widget, pos, text_item):
         # Преобразование позиции мыши в координаты графика
@@ -708,6 +718,46 @@ class window(QMainWindow):
             text_item.show()
         else:
             text_item.hide()
+
+    def log_point_coordinates(self, plot_widget, evt):
+        # Обрабатываем только левую кнопку мыши
+        try:
+            if evt.button() != QtCore.Qt.MouseButton.LeftButton:
+                return
+        except Exception:
+            pass
+        # Получаем позицию клика в координатах сцены
+        scene_pos = evt.scenePos()
+        plot_point = plot_widget.plotItem.vb.mapSceneToView(scene_pos)
+        x, y = plot_point.x(), plot_point.y()
+
+        data_items = plot_widget.listDataItems()
+
+        view_box = plot_widget.getViewBox()
+        view_range = view_box.viewRange()
+        x_range = view_range[0]
+        y_range = view_range[1]
+
+        x_threshold = (x_range[1] - x_range[0]) * 0.03
+        y_threshold = (y_range[1] - y_range[0]) * 0.03
+        threshold_distance = min(x_threshold, y_threshold)
+        threshold_distance = max(min(threshold_distance, 10), 3)
+
+        closest_point = None
+        min_distance = float('inf')
+        for item in data_items:
+            data_x = item.xData
+            data_y = item.yData
+            if data_x is None or data_y is None:
+                continue
+            for i in range(len(data_x)):
+                distance = ((data_x[i] - x) ** 2 + (data_y[i] - y) ** 2) ** 0.5
+                if distance < min_distance and distance < threshold_distance:
+                    min_distance = distance
+                    closest_point = (data_x[i], data_y[i])
+
+        if closest_point:
+            self.console(f"Координаты точки: X = {closest_point[0]:.2f}, Y = {closest_point[1]:.2f}")
 
     def search_pushButtom(self):
         # Получаем значение из поля Element_lineEdit
@@ -1813,7 +1863,7 @@ class window(QMainWindow):
                 
                 if msg_box.exec() == QtWidgets.QMessageBox.StandardButton.Yes:
                     # Удаляем все графики кроме основного
-                    for plot in current_plots[0:]:
+                    for plot in current_plots[1:]:
                         self.plot_widget_resoult.removeItem(plot)
                     list_widget.clear()
                     
