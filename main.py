@@ -308,6 +308,9 @@ class window(QMainWindow):
         self.ui.Console_textEdit.append(formatted_text)
         self.ui.Console_textEdit.append(" ")
         self.ui.Console_textEdit.ensureCursorVisible()
+        scrollbar = self.ui.Console_textEdit.verticalScrollBar()
+        if scrollbar is not None:
+            scrollbar.setValue(scrollbar.maximum())
 
     # Очистка консоли
     def console_clear(self):
@@ -784,39 +787,141 @@ class window(QMainWindow):
             self.console(f'{key} {val.energy} {val.intensity} {levels}')
         
         try:
-          
             # Создаем диалоговое окно для выбора линии
-            msg_box = QtWidgets.QMessageBox()
-            msg_box.setWindowTitle("Выбор линии")
-            msg_box.setText("Какая линия?")
+            dialog = QtWidgets.QDialog(self)
+            dialog.setWindowTitle("Выбор рентгеновской линии")
+            dialog.setModal(True)
+            dialog.resize(400, 300)
+            
+            # Создаем layout
+            layout = QtWidgets.QVBoxLayout()
+            
+            # Добавляем заголовок
+            title_label = QtWidgets.QLabel("Выберите две линии для калибровки:")
+            title_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(title_label)
+            
+            # Создаем таблицу с линиями
+            table = QtWidgets.QTableWidget()
+            table.setColumnCount(4)
+            table.setHorizontalHeaderLabels(["Линия", "Энергия (эВ)", "Интенсивность", "Уровни"])
+            
+            # Заполняем таблицу данными
+            lines_data = []
+            for key, val in xraydb.xray_lines(element).items():
+                lines_data.append({
+                    'line': key,
+                    'energy': val.energy,
+                    'intensity': val.intensity,
+                    'levels': f"{val.initial_level}-{val.final_level}"
+                })
+            
+            # Сортируем по энергии
+            lines_data.sort(key=lambda x: x['energy'])
+            
+            table.setRowCount(len(lines_data))
+            for i, line_data in enumerate(lines_data):
+                table.setItem(i, 0, QtWidgets.QTableWidgetItem(line_data['line']))
+                table.setItem(i, 1, QtWidgets.QTableWidgetItem(f"{line_data['energy']:.2f}"))
+                table.setItem(i, 2, QtWidgets.QTableWidgetItem(f"{line_data['intensity']:.2f}"))
+                table.setItem(i, 3, QtWidgets.QTableWidgetItem(line_data['levels']))
+            
+            # Настраиваем таблицу
+            table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+            table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
+            table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)  # Отключаем редактирование
+            table.setAlternatingRowColors(False)  # Отключаем чередование цветов строк
+            table.setStyleSheet("QTableWidget::item:hover { background-color: transparent; }")  # Убираем изменение фона при наведении
+            table.resizeColumnsToContents()
+            
+            # Добавляем предупреждающий лейбл
+            warning_label = QtWidgets.QLabel("")
+            warning_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+            warning_label.setStyleSheet("color: red; font-weight: bold;")
+            layout.addWidget(warning_label)
+            
+            layout.addWidget(table)
+            
+            # Добавляем кнопки
+            button_layout = QtWidgets.QHBoxLayout()
+            
+            select_button = QtWidgets.QPushButton("Выбрать")
+            select_button.setEnabled(False)  # Изначально заблокирована
+            cancel_button = QtWidgets.QPushButton("Отмена")
+            
+            button_layout.addWidget(select_button)
+            button_layout.addWidget(cancel_button)
+            
+            layout.addLayout(button_layout)
+            dialog.setLayout(layout)
+            
+            # Флаг для предотвращения рекурсивных вызовов
+            is_updating_selection = False
+            
+            # Функция проверки выбора
+            def check_selection():
+                nonlocal is_updating_selection
+                if is_updating_selection:
+                    return
                     
-            # Добавляем кнопки Ka и Kb
-            ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-            kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-            cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+                selected_rows = table.selectionModel().selectedRows()
+                if len(selected_rows) > 2:
+                    is_updating_selection = True
+                    # Оставляем только первые 2 выбранные строки
+                    selection_model = table.selectionModel()
+                    selection_model.clearSelection()
                     
-            # Показываем диалоговое окно и ждем ответа
-            msg_box.exec()
+                    # Выбираем только первые 2 строки
+                    first_two_rows = selected_rows[:2]
+                    for row in first_two_rows:
+                        selection_model.select(row, selection_model.SelectionFlag.Select | selection_model.SelectionFlag.Rows)
                     
-            clicked_button = msg_box.clickedButton()
+                    warning_label.setText("Нужно выбрать ровно 2 линии! (лишние строки сняты)")
+                    warning_label.setStyleSheet("color: red; font-weight: bold;")
+                    select_button.setEnabled(True)  # Разблокируем кнопку
+                    is_updating_selection = False
                     
-            # Устанавливаем значения в зависимости от выбора пользователя
-            if clicked_button == ka_button:
-                self.ui.E_one_doubleSpinBox.setValue(energy_values['Ka2'])
-                self.ui.E_two_doubleSpinBox.setValue(energy_values['Ka1'])
-                self.transition = "Ka"
-                self.console(f"Установлены значения для линии Ka: {energy_values['Ka2']}, {energy_values['Ka1']}")
-            elif clicked_button == kb_button:
-                self.ui.E_one_doubleSpinBox.setValue(energy_values['Kb1'])
-                self.ui.E_two_doubleSpinBox.setValue(energy_values['Kb5'])
-                self.transition = "Kb"
-                self.console(f"Установлены значения для линии Kb: {energy_values['Kb1']}, {energy_values['Kb5']}")
-            else:
-                # Пользователь отменил операцию
+                elif len(selected_rows) == 2:
+                    warning_label.setText("✓ Выбрано 2 линии")
+                    warning_label.setStyleSheet("color: green; font-weight: bold;")
+                    select_button.setEnabled(True)  # Разблокируем кнопку
+                else:
+                    warning_label.setText("")
+                    select_button.setEnabled(False)  # Блокируем кнопку
+            
+            # Обработчики кнопок
+            def on_select():
+                selected_rows = table.selectionModel().selectedRows()
+
+                # Получаем выбранные линии
+                line1 = lines_data[selected_rows[0].row()]
+                line2 = lines_data[selected_rows[1].row()]
+                
+                # Устанавливаем значения в спинбоксы
+                self.ui.E_one_doubleSpinBox.setValue(line1['energy'])
+                self.ui.E_two_doubleSpinBox.setValue(line2['energy'])
+                
+                # Устанавливаем переход
+                self.transition = f"{line1['line']}-{line2['line']}"
+                
+                self.console(f"Выбраны линии: {line1['line']} ({line1['energy']:.2f} эВ) и {line2['line']} ({line2['energy']:.2f} эВ)")
+                dialog.accept()
+            
+            def on_cancel():
                 self.console("Операция отменена")
+                dialog.reject()
+            
+            # Подключаем обработчик изменения выбора
+            table.selectionModel().selectionChanged.connect(lambda: check_selection())
+            
+            select_button.clicked.connect(on_select)
+            cancel_button.clicked.connect(on_cancel)
+            
+            # Показываем диалог
+            dialog.exec()
                         
-        except ValueError:
-            self.console(ValueError, True)
+        except Exception as e:
+            self.console(f"Ошибка при выборе линий: {str(e)}", True)
 
     def kristalAnalization_pushButton(self):
         # Создаем диалоговое окно для расчета угра
@@ -1020,28 +1125,28 @@ class window(QMainWindow):
             msg_box.setText("Какая линия?")
             
             # Сохраняем оригинальные X перед калибровкой, если еще не сохранены
-            if not self.original_X:
-                self.original_X = self.cor_X_File_1D.copy()
+            # if self.original_X is None:
+            #     self.original_X = self.cor_X_File_1D.copy()
             
-            # Добавляем кнопки Ka и Kb
-            ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-            kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
-            cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+            # # Добавляем кнопки Ka и Kb
+            # ka_button = msg_box.addButton("Ka", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            # kb_button = msg_box.addButton("Kb", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+            # cancel_button = msg_box.addButton("Отмена", QtWidgets.QMessageBox.ButtonRole.RejectRole)
             
-            # Показываем диалоговое окно и ждем ответа
-            msg_box.exec()
+            # # Показываем диалоговое окно и ждем ответа
+            # msg_box.exec()
             
-            clicked_button = msg_box.clickedButton()
+            # clicked_button = msg_box.clickedButton()
             
-            if clicked_button == ka_button:
-                self.transition = "Ka"
-                self.console("Выбрана линия Ka")
-            elif clicked_button == kb_button:
-                self.transition = "Kb"
-                self.console("Выбрана линия Kb")
-            elif clicked_button == cancel_button:
-                self.console("Операция отменена")
-                return
+            # if clicked_button == ka_button:
+            #     self.transition = "Ka"
+            #     self.console("Выбрана линия Ka")
+            # elif clicked_button == kb_button:
+            #     self.transition = "Kb"
+            #     self.console("Выбрана линия Kb")
+            # elif clicked_button == cancel_button:
+            #     self.console("Операция отменена")
+            #     return
         
         # Калибровка графика
         [self.cor_X_File_1D, energy_step] = self.convert_to_energy(self.cor_X_File_1D, E_one, E_two, N_one, N_two)
