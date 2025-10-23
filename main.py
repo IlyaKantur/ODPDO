@@ -924,86 +924,74 @@ class window(QMainWindow):
             self.console(f"Ошибка при выборе линий: {str(e)}", True)
 
     def kristalAnalization_pushButton(self):
-        # Создаем диалоговое окно для расчета угра
+        # Новый диалог: выбор 2 линий и расчет углов/хорд
         dialog = QtWidgets.QDialog(self)
-        dialog.setWindowTitle("Расчет угла")
+        dialog.setWindowTitle("Кристалл-расчёт (выбор линий и углов)")
         dialog.setModal(True)
 
-        # Создаем вертикальный layout
         layout = QtWidgets.QVBoxLayout()
 
-        # Создаем горизонтальный layout для ввода параметров расчета
-        search_box = QtWidgets.QFrame()
-        search_box.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
-        search_layout = QtWidgets.QHBoxLayout()
-        search_box.setLayout(search_layout)
+        top_box = QtWidgets.QFrame()
+        top_layout = QtWidgets.QHBoxLayout()
+        top_box.setLayout(top_layout)
 
-        # Поле ввода названия элемента
         element_lineEdit = QtWidgets.QLineEdit(placeholderText="Элемент")
         element_lineEdit.setMaximumWidth(100)
 
-        # Блок с выбором линии
-        line_radioButton_group = QtWidgets.QButtonGroup()
-        line_radioButton_Ka = QtWidgets.QRadioButton("Ka")
-        line_radioButton_Kb = QtWidgets.QRadioButton("Kb")
-        line_radioButton_group.addButton(line_radioButton_Ka)
-        line_radioButton_group.addButton(line_radioButton_Kb)
-        # line_radioButton_Ka.toggled.connect(self.line_radioButton_toggled)
-        # line_radioButton_Kb.toggled.connect(self.line_radioButton_toggled)
-        
-        # Выбор решетки
+         # Выбор решетки
         grid_comboBox = QtWidgets.QComboBox()
         grid_comboBox.setEditable(True)
-        grid_comboBox.setMinimumWidth(65)
+        grid_comboBox.setMaximumWidth(80)
         grid_comboBox.addItem("1.17")
         grid_comboBox.addItem("3.33")
         grid_comboBox.addItem("4.24")
+        # grid_lineEdit = QtWidgets.QLineEdit(placeholderText="d (Å)")
+        # grid_lineEdit.setMaximumWidth(80)
+        # grid_lineEdit.setText("3.33")
 
-        # Ввод радиуса
-        radius_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус")
-        radius_lineEdit.setMaximumWidth(100)
+        radius_lineEdit = QtWidgets.QLineEdit(placeholderText="R (см)")
+        radius_lineEdit.setMaximumWidth(80)
 
-        # Кнопка поиска
-        search_kristal_button = QtWidgets.QPushButton("🔍")
-        search_kristal_button.setFixedWidth(40)
+        load_button = QtWidgets.QPushButton("Загрузить линии")
+        calc_button = QtWidgets.QPushButton("Рассчитать")
 
-        search_layout.addWidget(element_lineEdit)
-        search_layout.addWidget(line_radioButton_Ka)
-        search_layout.addWidget(line_radioButton_Kb)
-        search_layout.addWidget(grid_comboBox)
-        search_layout.addWidget(radius_lineEdit)
-        search_layout.addWidget(search_kristal_button)
+        top_layout.addWidget(element_lineEdit)
+        top_layout.addWidget(load_button)
+        top_layout.addWidget(grid_comboBox)
+        top_layout.addWidget(radius_lineEdit)
+        top_layout.addWidget(calc_button)
 
-        error_label = QtWidgets.QLabel()
-        error_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        error_label.setObjectName("error_label")
-        error_label.setStyleSheet("color: red;")
+        warning_label = QtWidgets.QLabel("")
+        warning_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        # warning_label.setStyleSheet("color: red; font-weight: bold;")
 
-        # Заполняем layout для первой точки
-        first_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 1 пика")
-        first_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 1 пика")
-        first_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 1 пика")
-        first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 1 пика")
-        first_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText = "Порядок дифракции")
+        table = QtWidgets.QTableWidget()
+        table.setColumnCount(4)
+        table.setHorizontalHeaderLabels(["Линия", "Энергия (эВ)", "Интенсивность", "Уровни"])
+        table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
+        table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        table.setAlternatingRowColors(False)
+        table.setStyleSheet("QTableWidget::item:hover { background-color: transparent; }")
 
-        # Заполняем layout для второй точки
-        second_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText = "Энергия 2 пика")
-        second_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText = "Длина волны 2 пика")
-        second_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText = "Угол 2 пика")
-        second_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText = "Радиус 2 пика")
-        second_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText = "Порядок дифракции")
+        # Сетка результатов
+        first_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText="Энергия 1 пика")
+        first_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText="Длина волны 1 пика")
+        first_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText="Угол 1 пика")
+        first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText="Радиус 1 пика")
+        first_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText="Порядок дифракции")
 
-        # Список всех QLineEdit, которым нужно задать ширину
-        line_edits = [
-            first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, first_line_n_lineEdit, second_line_E_lineEdit, second_line_l_lineEdit, second_line_d_lineEdit, second_line_r_lineEdit, second_line_n_lineEdit
-        ]
+        second_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText="Энергия 2 пика")
+        second_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText="Длина волны 2 пика")
+        second_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText="Угол 2 пика")
+        second_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText="Радиус 2 пика")
+        second_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText="Порядок дифракции")
 
-        # Задаём максимальную ширину всем сразу
-        for edit in line_edits:
-            edit.setMaximumWidth(80)
+        for edit in [first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, first_line_n_lineEdit,
+                     second_line_E_lineEdit, second_line_l_lineEdit, second_line_d_lineEdit, second_line_r_lineEdit, second_line_n_lineEdit]:
+            edit.setMaximumWidth(95)
             edit.setReadOnly(True)
 
-        # Сетка
         grid_layout = QtWidgets.QGridLayout()
         grid_layout.addWidget(QtWidgets.QLabel("№", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 0)
         grid_layout.addWidget(QtWidgets.QLabel("Энергия (эВ)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 1)
@@ -1026,84 +1014,119 @@ class window(QMainWindow):
         grid_layout.addWidget(second_line_r_lineEdit, 2, 4)
         grid_layout.addWidget(second_line_n_lineEdit, 2, 5)
 
-        layout.addWidget(search_box)
-        layout.addWidget(error_label)
+        layout.addWidget(top_box)
+        layout.addWidget(warning_label)
+        layout.addWidget(table)
         layout.addLayout(grid_layout)
         dialog.setLayout(layout)
 
-        def search_clicked():
-            con = True
-            error_label.setText("")
-            if not line_radioButton_Ka.isChecked() and not line_radioButton_Kb.isChecked():
-                self.console("Выберите линию", True)
-                con = False
-            if not element_lineEdit.text():
-                self.console("Введите назнание", True)
-                con = False
-            if not grid_comboBox.currentText():
-                self.console("Выберите решетку", True)
-                con = False
-            if not radius_lineEdit.text():
-                self.console("Введите радиус", True)
-                con = False
-            if con:
-                # Получаем значение из поля Element_lineEdit
-                energy_values = {}
-                l = {}
-                chord = {}
-                angle = {}
-                angle_deg = {}
-                d = float(grid_comboBox.currentText())
-                line = line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()
-                n_diffraction = 0
+        lines_data = []
 
-                element_text = element_lineEdit.text().strip()
-                element = element_text[0].upper() + element_text[1:].lower()
-                
+        def load_lines():
+            table.selectionModel().clearSelection()
+
+            nonlocal lines_data
+            warning_label.setText("")
+            el = element_lineEdit.text().strip()
+            if not el:
+                warning_label.setText("Укажите элемент")
+                return
+            element = el[0].upper() + el[1:].lower()
+            try:
+                lines_data = []
                 for key, val in xraydb.xray_lines(element).items():
-                    if (line == "Ka" and (key == "Ka1" or key == "Ka2")) or (line == "Kb" and (key == "Kb1" or key == "Kb5")):
-                        energy_values[key] = val.energy 
-                        l[key] = np.round(12398.41984 / val.energy, 4)
-                        for i in [1, 2, 3]:
-                            angle[key] = np.round(np.arcsin(i * l[key] / (2 * d)), 3)
-                            angle_deg[key] = np.round(np.degrees(angle[key]), 1)
-                            if angle_deg[key] > 30 and angle_deg[key] < 60:
-                                chord[key] = np.round(float(radius_lineEdit.text()) * np.sin(angle[key]), 1)
-                                if chord[key] > 80 and chord[key] < 115:
-                                    if key.find("1") != -1:
-                                        n_diffraction = i
-                                        first_line_E_lineEdit.setText(str(energy_values[key]))
-                                        first_line_l_lineEdit.setText(str(l[key]))
-                                        first_line_d_lineEdit.setText(str(angle_deg[key]))
-                                        first_line_r_lineEdit.setText(str(chord[key]))
-                                        first_line_n_lineEdit.setText(str(i))
-                                    else:
-                                        n_diffraction = i
-                                        second_line_E_lineEdit.setText(str(energy_values[key]))
-                                        second_line_l_lineEdit.setText(str(l[key]))
-                                        second_line_d_lineEdit.setText(str(angle_deg[key]))
-                                        second_line_r_lineEdit.setText(str(chord[key]))
-                                        second_line_n_lineEdit.setText(str(i))
-                                    break
-                if n_diffraction == 0:
-                    error_label.setText("Не найдено подходящих параметров")
-                    self.console("Не найдено подходящих параметров", True)
-                    return
-                else:
-                    self.console(f"Элемент: {element}", False)
-                    self.console(f"Линия: {line_radioButton_Ka.text() if line_radioButton_Ka.isChecked() else line_radioButton_Kb.text()}", False)
-                    self.console(f"Решетка: {grid_comboBox.currentText()}", False)
-                    self.console(f"Энергия: {energy_values}", False)
-                    self.console(f"Д. волны: "+ str({k : float(v) for k,v in l.items()}), False)
-                    self.console(f"Угол: "+ str({k : float(v) for k,v in angle_deg.items()}), False)
-                    self.console(f"Хорда: "+ str({k : float(v) for k,v in chord.items()}), False)
-                    self.console(f"Пор. дифр.: {n_diffraction}", False)
-                
+                    lines_data.append({
+                        'line': key,
+                        'energy': float(val.energy),
+                        'intensity': float(val.intensity),
+                        'levels': f"{val.initial_level}-{val.final_level}"
+                    })
+                lines_data.sort(key=lambda x: x['energy'])
+                table.setRowCount(len(lines_data))
+                for i, ld in enumerate(lines_data):
+                    table.setItem(i, 0, QtWidgets.QTableWidgetItem(ld['line']))
+                    table.setItem(i, 1, QtWidgets.QTableWidgetItem(f"{ld['energy']:.2f}"))
+                    table.setItem(i, 2, QtWidgets.QTableWidgetItem(f"{ld['intensity']:.2f}"))
+                    table.setItem(i, 3, QtWidgets.QTableWidgetItem(ld['levels']))
+                table.resizeColumnsToContents()
+            except Exception as e:
+                warning_label.setText(f"Ошибка загрузки линий: {e}")
 
-        search_kristal_button.clicked.connect(search_clicked)
-        element_lineEdit.returnPressed.connect(search_clicked)
+        is_updating_selection = False
+        def on_selection_changed():
+            nonlocal is_updating_selection
+            if is_updating_selection:
+                return
+            selected = table.selectionModel().selectedRows()
+            if len(selected) > 2:
+                is_updating_selection = True
+                sel_model = table.selectionModel()
+                sel_model.clearSelection()
+                keep = selected[:2]
+                for row in keep:
+                    sel_model.select(row, sel_model.SelectionFlag.Select | sel_model.SelectionFlag.Rows)
+                warning_label.setText("Нужно выбрать ровно 2 линии! (лишние строки сняты)")
+                is_updating_selection = False
+            elif len(selected) == 2:
+                warning_label.setText("✓ Выбрано 2 линии")
+            else:
+                warning_label.setText("")
 
-        result = dialog.exec()
+        def calc():
+            warning_label.setText("")
+            try:
+                d = float(grid_comboBox.currentText())
+                R = float(radius_lineEdit.text())
+            except ValueError:
+                warning_label.setText("Некорректные d или R")
+                return
+            selected = table.selectionModel().selectedRows()
+            if len(selected) != 2:
+                warning_label.setText("Выберите ровно 2 линии")
+                return
+
+            def fill(line_idx, e_edit, l_edit, ang_edit, r_edit, n_edit):
+                energy = float(lines_data[line_idx]['energy'])
+                wavelength = 12398.41984 / energy
+                chosen = None
+                for n in [1, 2, 3]:
+                    try:
+                        theta = np.arcsin(n * wavelength / (2 * d))
+                    except ValueError:
+                        continue
+                    theta_deg = np.degrees(theta)
+                    if 30 < theta_deg < 60:
+                        chord = R * np.sin(theta)
+                        if 80 < chord < 115:
+                            chosen = (theta_deg, chord, n)
+                            break
+                e_edit.setText(f"{energy:.4f}")
+                l_edit.setText(f"{wavelength:.4f}")
+                if chosen is None:
+                    ang_edit.setText("")
+                    r_edit.setText("")
+                    n_edit.setText("")
+                    return False
+                ang_edit.setText(f"{chosen[0]:.1f}")
+                r_edit.setText(f"{chosen[1]:.1f}")
+                n_edit.setText(f"{chosen[2]}")
+                return True
+
+            idx1 = selected[0].row()
+            idx2 = selected[1].row()
+            ok1 = fill(idx1, first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, first_line_n_lineEdit)
+            ok2 = fill(idx2, second_line_E_lineEdit, second_line_l_lineEdit, second_line_d_lineEdit, second_line_r_lineEdit, second_line_n_lineEdit)
+            if not (ok1 and ok2):
+                warning_label.setText("Не найдено подходящих параметров для выбранных линий")
+                return
+            self.console(f"Элемент: {element_lineEdit.text().strip()}")
+            self.console(f"Решётка d: {d} Å, Радиус R: {R} см")
+
+        load_button.clicked.connect(load_lines)
+        table.selectionModel().selectionChanged.connect(lambda *_: on_selection_changed())
+        calc_button.clicked.connect(calc)
+
+        dialog.exec()
 
     def calibration_pushButton(self):
         # Получаем значения из полей
