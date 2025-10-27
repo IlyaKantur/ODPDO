@@ -15,6 +15,9 @@ import scipy.interpolate as interpolate
 from scipy.optimize import curve_fit
 from scipy.special import voigt_profile
 
+import serial
+import serial.tools.list_ports
+
 import matplotlib.pyplot as plt
 import xraydb
 
@@ -78,6 +81,7 @@ class window(QMainWindow):
         self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
 
         self.ui.Kristal_action.triggered.connect(self.kristalAnalization_pushButton)
+        self.ui.Connect_action.triggered.connect(self.connect_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -1127,6 +1131,10 @@ class window(QMainWindow):
         calc_button.clicked.connect(calc)
 
         dialog.exec()
+
+    
+    def connect_pushButton(self):
+        
 
     def calibration_pushButton(self):
         # Получаем значения из полей
