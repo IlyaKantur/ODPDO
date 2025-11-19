@@ -1,0 +1,781 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "atlres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Neutral (Default) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NEUD)
+#ifdef _WIN32
+LANGUAGE LANG_NEUTRAL, SUBLANG_DEFAULT
+#pragma code_page(1251)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Toolbar
+//
+
+IDR_MAINFRAME TOOLBAR  16, 15
+BEGIN
+    BUTTON      ID_FILE_NEW
+    BUTTON      ID_PACKET
+    BUTTON      ID_FILE_SAVE
+    SEPARATOR
+    BUTTON      ID_FILE_CLOSE
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDR_MAINFRAME           BITMAP                  "res\\Toolbar.bmp"
+IDB_STATES              BITMAP                  "res\\states.bmp"
+IDB_STATES12            BITMAP                  "res\\states12.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\wDETECT.ico"
+IDI_SERIAL              ICON                    "res\\serial.ico"
+IDI_MISC                ICON                    "res\\misc.ico"
+IDI_PACKET              ICON                    "res\\packet.ico"
+#endif    // Neutral (Default) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Russian resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_RUS)
+#ifdef _WIN32
+LANGUAGE LANG_RUSSIAN, SUBLANG_DEFAULT
+#pragma code_page(1251)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MISC DIALOGEX 0, 0, 179, 84
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION " Разное"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,122,7,50,14
+    PUSHBUTTON      "Отмена",IDCANCEL,122,26,50,14
+    RTEXT           "Обнов.,сек. : ",IDC_STATIC1,7,7,55,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EREFRESH,62,7,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+    RTEXT           "Задержка, мс : ",IDC_STATIC2,7,26,55,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDELAY,62,26,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+END
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 187, 102
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "  Информация о программе"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,130,81,50,14
+    CTEXT           "wDETECT  v2.03 dbg\n by DDV \n(c) Copyright 2007",
+                    IDC_STATIC,25,57,78,32
+    ICON            IDR_MAINFRAME,IDC_STATIC,55,26,20,20
+    GROUPBOX        "",IDC_STATIC,7,7,115,88
+END
+
+IDD_SERIAL DIALOG  0, 0, 179, 84
+STYLE DS_LOCALEDIT | DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION " Последовательный порт"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,122,7,50,14
+    PUSHBUTTON      "Отмена",IDCANCEL,122,26,50,14
+    RTEXT           "Порт :",IDC_STATIC,7,7,50,14,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOPORT,62,7,50,56,CBS_DROPDOWNLIST | CBS_SORT | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Скрость :",IDC_STATIC,7,26,50,14,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOBAUD,62,26,50,64,CBS_DROPDOWNLIST | 
+                    CBS_NOINTEGRALHEIGHT | CBS_DISABLENOSCROLL | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Чётность :",IDC_STATIC,7,45,50,14,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOPARITY,62,45,50,45,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Стоп.битов :",IDC_STATIC,7,64,50,13,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOSTOPS,62,64,50,43,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+END
+
+IDD_PACKET DIALOGEX 0, 0, 187, 104
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Наблюдение пакетом"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,130,7,50,14
+    PUSHBUTTON      "Отмена",IDCANCEL,130,26,50,14
+    RTEXT           "Экспозиция : ",IDC_STATIC1,7,7,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EEXPOS,57,7,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+    RTEXT           "Переход, Тк. : ",IDC_STATIC2,7,26,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_ETICKS,57,26,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+    LTEXT           "Имя пакета : ",IDC_STATIC3,7,45,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EPACKET,7,64,173,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    NOT WS_BORDER,WS_EX_STATICEDGE
+    PUSHBUTTON      "&Изменить",IDC_BCHANGE,130,83,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_MISC, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 172
+        VERTGUIDE, 62
+        VERTGUIDE, 112
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 77
+        HORZGUIDE, 21
+        HORZGUIDE, 26
+    END
+
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 180
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 95
+    END
+
+    IDD_PACKET, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 180
+        VERTGUIDE, 57
+        VERTGUIDE, 125
+        VERTGUIDE, 130
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 97
+        HORZGUIDE, 21
+        HORZGUIDE, 26
+        HORZGUIDE, 40
+        HORZGUIDE, 45
+        HORZGUIDE, 59
+        HORZGUIDE, 64
+        HORZGUIDE, 78
+        HORZGUIDE, 83
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU 
+BEGIN
+    POPUP "&Наблюдение"
+    BEGIN
+        MENUITEM "&Новое\tCtrl+N",              ID_FILE_NEW
+        MENUITEM "&Пакетом\tCtrl+P",            ID_PACKET
+        MENUITEM "&Сохранить\tCtrl+S",          ID_FILE_SAVE
+        MENUITEM SEPARATOR
+        MENUITEM "&Закрыть",                    ID_FILE_CLOSE
+        MENUITEM SEPARATOR
+        MENUITEM "В&ыход",                      ID_APP_EXIT
+    END
+    POPUP "&Опции"
+    BEGIN
+        MENUITEM "&Сопряжение",                 ID_SERIAL
+        MENUITEM "&Разное",                     ID_MISC
+    END
+    POPUP "&Помощь"
+    BEGIN
+        MENUITEM "&О программе...",             ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS 
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041904b0"
+        BEGIN
+            VALUE "FileDescription", "wDETECT Module"
+            VALUE "FileVersion", "1, 0, 0, 1"
+            VALUE "InternalName", "wDETECT"
+            VALUE "LegalCopyright", "Copyright 2006"
+            VALUE "OriginalFilename", "wDETECT.exe"
+            VALUE "ProductName", "wDETECT Module"
+            VALUE "ProductVersion", "1, 0, 0, 1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x419, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE 
+BEGIN
+    IDR_MAINFRAME           "wDETECT"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_FILE_NEW             "Начать новое наблюдение\nНаблюдение"
+    ID_FILE_CLOSE           "Прервать наблюдение, данные в ведро\nПрервать"
+    ID_FILE_SAVE            "Сохранить текущие данные\nСохранить"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_APP_ABOUT            "Показать инфо о программе, номер версии и copyright\nО программе ..."
+    ID_APP_EXIT             "Выйти из программы\nВыход"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_VIEW_TOOLBAR         "Скрыть/Показать панель инструментов"
+    ID_VIEW_STATUS_BAR      "Скрыть/Показать строку статуса"
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_SCSIZE          "Изменить размер окна"
+    ATL_IDS_SCMOVE          "Переместить окно"
+    ATL_IDS_SCMINIMIZE      "Минимизировать окно"
+    ATL_IDS_SCMAXIMIZE      "Увеличить окно до полных размеров"
+    ATL_IDS_SCNEXTWINDOW    "Следующее окно"
+    ATL_IDS_SCPREVWINDOW    "Предыдущее окно"
+    ATL_IDS_SCCLOSE         "Выйти из программы"
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_SCRESTORE       "Восстановить окно до нормальных размеров"
+    ATL_IDS_SCTASKLIST      "Список активных задач"
+    ATL_IDS_MDICHILD        "Активировать окно"
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_IDLEMESSAGE     "Готов работать ..."
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_MRU_FILE        "Открыть документ"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_CAPOK               "ОК !"
+    IDS_CAPERROR            "Ошибка !"
+    IDS_CAPWARNING          "Внимание !"
+    IDS_CAPINFO             "Уведомление"
+    IDS_CAPQUESTION         "?"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_PARITYNO            " None"
+    IDS_PARITYODD           " Odd"
+    IDS_PARITYEVEN          " Even"
+    IDS_PARITYMARK          " Mark"
+    IDS_PARITYSPACE         " Space"
+    IDS_STOPONE             " 1"
+    IDS_STOP15              " 1.5"
+    IDS_STOPTWO             " 2"
+    IDS_FILEEXT             "txt"
+    IDS_FILTERS             "Текстовые файлы (*.txt)#*.txt#Все файлы (*.*)#*.*#"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_FILEQUEST           "Выбросить накопленные данные ?"
+    IDS_EXITQUEST           "Прервать наблюдение и выйти ?"
+    IDS_FIXED               "Число не находится в диапазоне [%%I64d.%%0%uI64u, %%I64d.%%0%uI64u]."
+    IDS_FIXEDU              "Число не находится в диапазоне [%%I64u.%%0%uI64u, %%I64u.%%0%uI64u]."
+    IDS_INIERROR            "Загрузка файла конфигурации"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_SERIAL               "Настройки последовательного порта\nОпции порта"
+    ID_MISC                 "Прочие опции\nПрочее"
+    ID_PACKET               "Начать наблюдение пакетом\nНаблюдение пакетом"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_LAST                " Канал : 0000 "
+    IDS_LASTMSG             " Канал : %04hu "
+    IDS_LOST                "XXX 000000000"
+    IDS_LOSTMSG             "%9u"
+    IDS_FRAME               "Флаги ошибки последовательного В/В суть 0x%04X"
+    IDS_EMPTY               "Бездействие"
+    IDS_CONNECTED           "Наблюдение"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_CONERROR            "Ошибка В/В : %s"
+    IDS_MOVING              "Движение ..."
+END
+
+#endif    // Russian resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 187, 102
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION " App Info"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,130,81,50,14
+    CTEXT           "wDETECT  v2.03 dbg\n by DDV \n(c) Copyright 2007",
+                    IDC_STATIC1,25,57,78,32
+    ICON            IDR_MAINFRAME,IDC_STATIC,55,26,20,20
+    GROUPBOX        "",IDC_STATIC,7,7,115,88
+END
+
+IDD_SERIAL DIALOG  0, 0, 179, 84
+STYLE DS_LOCALEDIT | DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION " Serial Port"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,122,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,122,26,50,14
+    RTEXT           "Port Number :",IDC_STATIC,7,7,50,14,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOPORT,62,7,50,56,CBS_DROPDOWNLIST | CBS_SORT | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Baud Rate :",IDC_STATIC,7,26,50,14,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOBAUD,62,26,50,64,CBS_DROPDOWNLIST | 
+                    CBS_NOINTEGRALHEIGHT | CBS_DISABLENOSCROLL | WS_VSCROLL | 
+                    WS_TABSTOP
+    RTEXT           "Parity :",IDC_STATIC,7,45,50,14,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOPARITY,62,45,50,45,CBS_DROPDOWNLIST | 
+                    WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Stop Bits :",IDC_STATIC,7,64,50,13,SS_CENTERIMAGE
+    COMBOBOX        IDC_COMBOSTOPS,62,64,50,43,CBS_DROPDOWNLIST | WS_VSCROLL | 
+                    WS_TABSTOP
+END
+
+IDD_MISC DIALOGEX 0, 0, 179, 84
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION " Miscellaneous options"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,122,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,122,26,50,14
+    RTEXT           "Refr. Rate : ",IDC_STATIC1,7,7,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EREFRESH,57,7,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+    RTEXT           "Delay, mS : ",IDC_STATIC2,7,26,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EDELAY,57,26,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+END
+
+IDD_PACKET DIALOGEX 0, 0, 187, 104
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Packet survey"
+FONT 8, "MS Sans Serif", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,130,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,130,26,50,14
+    RTEXT           "Exposition : ",IDC_STATIC1,7,7,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EEXPOS,57,7,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+    RTEXT           "Step, ticks : ",IDC_STATIC2,7,26,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_ETICKS,57,26,50,14,ES_RIGHT | ES_MULTILINE | 
+                    ES_AUTOHSCROLL | NOT WS_BORDER,WS_EX_STATICEDGE
+    LTEXT           "Packet name : ",IDC_STATIC3,7,45,50,14,SS_CENTERIMAGE
+    EDITTEXT        IDC_EPACKET,7,64,173,14,ES_AUTOHSCROLL | ES_READONLY | 
+                    NOT WS_BORDER,WS_EX_STATICEDGE
+    PUSHBUTTON      "&Change",IDC_BCHANGE,130,83,50,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 180
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 95
+    END
+
+    IDD_MISC, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 172
+        VERTGUIDE, 57
+        VERTGUIDE, 112
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 77
+        HORZGUIDE, 21
+        HORZGUIDE, 26
+    END
+
+    IDD_PACKET, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 180
+        VERTGUIDE, 57
+        VERTGUIDE, 125
+        VERTGUIDE, 130
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 97
+        HORZGUIDE, 21
+        HORZGUIDE, 26
+        HORZGUIDE, 40
+        HORZGUIDE, 45
+        HORZGUIDE, 59
+        HORZGUIDE, 64
+        HORZGUIDE, 78
+        HORZGUIDE, 83
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MAINFRAME MENU 
+BEGIN
+    POPUP "&Record"
+    BEGIN
+        MENUITEM "&New\tCtrl+N",                ID_FILE_NEW
+        MENUITEM "&Packet\tCtrl+P",             ID_PACKET
+        MENUITEM "&Save\tCtrl+S",               ID_FILE_SAVE
+        MENUITEM SEPARATOR
+        MENUITEM "&Close",                      ID_FILE_CLOSE
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                       ID_APP_EXIT
+    END
+    POPUP "&Options"
+    BEGIN
+        MENUITEM "&Serial",                     ID_SERIAL
+        MENUITEM "&Miscellaneous",              ID_MISC
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About wDETECT...",           ID_APP_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_MAINFRAME ACCELERATORS 
+BEGIN
+    "N",            ID_FILE_NEW,            VIRTKEY, CONTROL
+    "O",            ID_FILE_OPEN,           VIRTKEY, CONTROL
+    "S",            ID_FILE_SAVE,           VIRTKEY, CONTROL
+    "P",            ID_FILE_PRINT,          VIRTKEY, CONTROL
+    "Z",            ID_EDIT_UNDO,           VIRTKEY, CONTROL
+    "X",            ID_EDIT_CUT,            VIRTKEY, CONTROL
+    "C",            ID_EDIT_COPY,           VIRTKEY, CONTROL
+    "V",            ID_EDIT_PASTE,          VIRTKEY, CONTROL
+    VK_BACK,        ID_EDIT_UNDO,           VIRTKEY, ALT
+    VK_DELETE,      ID_EDIT_CUT,            VIRTKEY, SHIFT
+    VK_INSERT,      ID_EDIT_COPY,           VIRTKEY, CONTROL
+    VK_INSERT,      ID_EDIT_PASTE,          VIRTKEY, SHIFT
+    VK_F6,          ID_NEXT_PANE,           VIRTKEY 
+    VK_F6,          ID_PREV_PANE,           VIRTKEY, SHIFT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "wDETECT Module"
+            VALUE "FileVersion", "1, 0, 0, 1"
+            VALUE "InternalName", "wDETECT"
+            VALUE "LegalCopyright", "Copyright 2006"
+            VALUE "OriginalFilename", "wDETECT.exe"
+            VALUE "ProductName", "wDETECT Module"
+            VALUE "ProductVersion", "1, 0, 0, 1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""atlres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST ""res\\\\wDETECT.exe.manifest""\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE 
+BEGIN
+    IDR_MAINFRAME           "wDETECT"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_FILE_NEW             "Start a new record\nNew"
+    ID_FILE_CLOSE           "Stop survey, discard data\nDiscard"
+    ID_FILE_SAVE            "Save the active record\nSave"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_APP_ABOUT            "Display program information, version number and copyright\nAbout"
+    ID_APP_EXIT             "Quit the application; prompts to save documents\nExit"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_VIEW_TOOLBAR         "Show/Hide Toolbar"
+    ID_VIEW_STATUS_BAR      "Show/Hide Status Bar"
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_SCSIZE          "Change the window size"
+    ATL_IDS_SCMOVE          "Change the window position"
+    ATL_IDS_SCMINIMIZE      "Reduce the window to an icon"
+    ATL_IDS_SCMAXIMIZE      "Enlarge the window to full size"
+    ATL_IDS_SCNEXTWINDOW    "Switch to the next document window"
+    ATL_IDS_SCPREVWINDOW    "Switch to the previous document window"
+    ATL_IDS_SCCLOSE         "Close the active window and prompts to save the documents"
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_SCRESTORE       "Restore the window to normal size"
+    ATL_IDS_SCTASKLIST      "Activate Task List"
+    ATL_IDS_MDICHILD        "Activate this window"
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_IDLEMESSAGE     "Ready"
+END
+
+STRINGTABLE 
+BEGIN
+    ATL_IDS_MRU_FILE        "Open this document"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_CAPOK               "Success"
+    IDS_CAPERROR            "Error !"
+    IDS_CAPWARNING          "Warning !"
+    IDS_CAPINFO             "Information"
+    IDS_CAPQUESTION         "?"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_PARITYNO            " None"
+    IDS_PARITYODD           " Odd"
+    IDS_PARITYEVEN          " Even"
+    IDS_PARITYMARK          " Mark"
+    IDS_PARITYSPACE         " Space"
+    IDS_STOPONE             " 1"
+    IDS_STOP15              " 1.5"
+    IDS_STOPTWO             " 2"
+    IDS_FILEEXT             "txt"
+    IDS_FILTERS             "Text Files (*.txt)#*.txt#All Files (*.*)#*.*#"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_FILEQUEST           "Do You want to discard all data ?"
+    IDS_EXITQUEST           "Do You want to interrupt the survey and quit ?"
+    IDS_FIXED               "The number is not in the range [%%I64d.%%0%uI64u, %%I64d.%%0%uI64u]."
+    IDS_FIXEDU              "The number is not in the range [%%I64u.%%0%uI64u, %%I64u.%%0%uI64u]."
+    IDS_INIERROR            "Loading Config File"
+END
+
+STRINGTABLE 
+BEGIN
+    ID_SERIAL               "Serial link options\nSerial Options"
+    ID_MISC                 "Miscellaneous options\nMiscellaneous"
+    ID_PACKET               "Start a new packet survey\nPacket survey"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_LAST                " Last chan.: 0000 "
+    IDS_LASTMSG             " Last chan.: %04hu "
+    IDS_LOST                "XXX 000000000"
+    IDS_LOSTMSG             "%9u"
+    IDS_FRAME               "Serial IO Error Flags are 0x%04X"
+    IDS_EMPTY               "Disconnected"
+    IDS_CONNECTED           "Connected"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_CONERROR            "IO Error: %s"
+    IDS_MOVING              "Motion in progress ..."
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "res\\wDETECT.exe.manifest"
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

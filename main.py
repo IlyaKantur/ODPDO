@@ -1133,7 +1133,7 @@ class window(QMainWindow):
         dialog.exec()
 
     
-    def connect_pushButton(self):
+    # def connect_pushButton(self):
         
 
     def calibration_pushButton(self):
