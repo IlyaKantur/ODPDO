@@ -1,0 +1,58 @@
+<20251107165349.390 SYS>
+COM ioe?uo
+<20251107165349.390 SYS>
+Nei?inou ia?aaa?e 115200
+<20251107165349.390 SYS>
+DTR aee??ai
+<20251107165349.390 SYS>
+Aeou aaiiuo=8, Noiiiaua aeou=1, ?aoiinou=None
+<20251107165349.390 SYS>
+Neo?. neiaieu: Eof=0x00, Error=0xFF, Break=0xFF, Event=0x00, Xon=0x11, Xoff=0x13
+<20251107165349.390 SYS>
+Eiio?ieu ia?aaa?e: ControlHandShake=(DTR_CONTROL), Caiaia=(ERROR_CHAR, TRANSMIT_TOGGLE, RTS_CONTROL, RTS_HANDSHAKE), Eeieo Xon=2048, Eeieo Xoff=512
+<20251107165349.390 SYS>
+?acia? ao./eno. i?a?aae 1024/1024
+<20251107165349.390 SYS>
+Unable to add string #8
+<20251107165349.390 SYS>
+I?enoea ii?oa: RXABORT, RXCLEAR
+<20251107165349.390 TX>
+T
+<20251107165349.562 RX>
+8C<BEL>??g#§<BS>B<CAN>??8±5C<NUL>ˆ<STX>d<ETX>§<STX>e<DLE>?<SUB>T<FF>”<NUL>P ®/g)?<ACK>d<STX>?4A.??q<SOH>›<FS>l7¦?<SOH>‰ [len=297]
+<20251107165351.234 RX>
+R/??<ENQ>„'l<FS>«.c:?4B4ˆ<h<DC1>§<ENQ>B0? h'°%f>§1^1”)j<GS>?
+<20251107165351.968 TX>
+P
+<20251107165351.984 SYS>
+COM cae?uo
+<20251107165408.354 SYS>
+COM ioe?uo
+<20251107165408.354 SYS>
+?acia? ao./eno. i?a?aae 4096/4096
+<20251107165408.354 SYS>
+Unable to add string #8
+<20251107165408.354 SYS>
+Nei?inou ia?aaa?e 115200
+<20251107165408.354 SYS>
+DTR aee??ai
+<20251107165408.354 SYS>
+Aeou aaiiuo=8, Noiiiaua aeou=1, ?aoiinou=None
+<20251107165408.354 SYS>
+Neo?. neiaieu: Eof=0x00, Error=0xFF, Break=0xFF, Event=0x00, Xon=0x11, Xoff=0x13
+<20251107165408.354 SYS>
+Eiio?ieu ia?aaa?e: ControlHandShake=(DTR_CONTROL), Caiaia=(TRANSMIT_TOGGLE, RTS_CONTROL), Eeieo Xon=2048, Eeieo Xoff=512
+<20251107165408.354 SYS>
+I?enoea ii?oa: RXABORT, RXCLEAR, TXABORT, TXCLEAR
+<20251107165408.354 SYS>
+?acia? ao./eno. i?a?aae 1024/1024
+<20251107165408.354 SYS>
+Nei?inou ia?aaa?e 115200
+<20251107165408.354 SYS>
+DTR aee??ai
+<20251107165408.354 SYS>
+Aeou aaiiuo=8, Noiiiaua aeou=1, ?aoiinou=None
+<20251107165408.354 SYS>
+Neo?. neiaieu: Eof=0x00, Error=0xFF, Break=0xFF, Event=0x00, Xon=0x11, Xoff=0x13
+<20251107165408.354 SYS>
+Eiio?ieu ia?aaa?e: ControlHandShake=(DTR_CONTROL), Caiaia=(TRANSMIT_TOGGLE, RTS_CONTROL, RTS_HANDSHAKE), Eeieo Xon=2048, Eeieo Xoff=512
