@@ -81,7 +81,7 @@ class window(QMainWindow):
         self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
 
         self.ui.Kristal_action.triggered.connect(self.kristalAnalization_pushButton)
-        self.ui.Connect_action.triggered.connect(self.connect_pushButton)
+        # self.ui.Connect_action.triggered.connect(self.connect_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -970,8 +970,8 @@ class window(QMainWindow):
         # warning_label.setStyleSheet("color: red; font-weight: bold;")
 
         table = QtWidgets.QTableWidget()
-        table.setColumnCount(4)
-        table.setHorizontalHeaderLabels(["Линия", "Энергия (эВ)", "Интенсивность", "Уровни"])
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(["Линия", "Энергия (эВ)", "Длина волны (Å)", "Интенсивность", "Уровни"])
         table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.MultiSelection)
         table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -982,13 +982,13 @@ class window(QMainWindow):
         first_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText="Энергия 1 пика")
         first_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText="Длина волны 1 пика")
         first_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText="Угол 1 пика")
-        first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText="Радиус 1 пика")
+        first_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText="Хорда 1 пика")
         first_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText="Порядок дифракции")
 
         second_line_E_lineEdit = QtWidgets.QLineEdit(placeholderText="Энергия 2 пика")
         second_line_l_lineEdit = QtWidgets.QLineEdit(placeholderText="Длина волны 2 пика")
         second_line_d_lineEdit = QtWidgets.QLineEdit(placeholderText="Угол 2 пика")
-        second_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText="Радиус 2 пика")
+        second_line_r_lineEdit = QtWidgets.QLineEdit(placeholderText="Хорда 2 пика")
         second_line_n_lineEdit = QtWidgets.QLineEdit(placeholderText="Порядок дифракции")
 
         for edit in [first_line_E_lineEdit, first_line_l_lineEdit, first_line_d_lineEdit, first_line_r_lineEdit, first_line_n_lineEdit,
@@ -1001,7 +1001,7 @@ class window(QMainWindow):
         grid_layout.addWidget(QtWidgets.QLabel("Энергия (эВ)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 1)
         grid_layout.addWidget(QtWidgets.QLabel("Д. волны (Å)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 2)
         grid_layout.addWidget(QtWidgets.QLabel("Угол (град)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 3)
-        grid_layout.addWidget(QtWidgets.QLabel("Радиус (см)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 4)
+        grid_layout.addWidget(QtWidgets.QLabel("Хорда (см)", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 4)
         grid_layout.addWidget(QtWidgets.QLabel("Пор. дифр.", alignment=QtCore.Qt.AlignmentFlag.AlignCenter), 0, 5)
 
         grid_layout.addWidget(QtWidgets.QLabel("1"), 1, 0)
@@ -1048,10 +1048,12 @@ class window(QMainWindow):
                 lines_data.sort(key=lambda x: x['energy'])
                 table.setRowCount(len(lines_data))
                 for i, ld in enumerate(lines_data):
+                    wavelength = 12398.41984 / float(ld['energy'])
                     table.setItem(i, 0, QtWidgets.QTableWidgetItem(ld['line']))
                     table.setItem(i, 1, QtWidgets.QTableWidgetItem(f"{ld['energy']:.2f}"))
-                    table.setItem(i, 2, QtWidgets.QTableWidgetItem(f"{ld['intensity']:.2f}"))
-                    table.setItem(i, 3, QtWidgets.QTableWidgetItem(ld['levels']))
+                    table.setItem(i, 2, QtWidgets.QTableWidgetItem(f"{wavelength:.3f}"))
+                    table.setItem(i, 3, QtWidgets.QTableWidgetItem(f"{ld['intensity']:.2f}"))
+                    table.setItem(i, 4, QtWidgets.QTableWidgetItem(ld['levels']))
                 table.resizeColumnsToContents()
             except Exception as e:
                 warning_label.setText(f"Ошибка загрузки линий: {e}")
