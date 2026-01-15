@@ -274,51 +274,86 @@ def plot_live_histogram(
     """Строит график (канал -> количество попаданий) в режиме реального времени."""
 
     try:
-        import matplotlib.pyplot as plt  # type: ignore
-    except ImportError as exc:  # pragma: no cover - требуется matplotlib
-        raise RuntimeError("Для графика установите пакет matplotlib") from exc
+        import pyqtgraph as pg  # type: ignore
+        from PyQt5.QtWidgets import QApplication  # type: ignore
+        import numpy as np  # type: ignore
+    except ImportError as exc:  # pragma: no cover - требуется pyqtgraph
+        raise RuntimeError(
+            "Для графика установите пакеты: pyqtgraph, PyQt5, numpy"
+        ) from exc
 
-    plt.ion()
-    fig, ax = plt.subplots()
-    plt.show(block=False)
-    ax.set_xlabel("Номер канала")
-    ax.set_ylabel("Количество")
-    ax.set_title("Live histogram (канал / попадания)")
+    # Создаём или получаем QApplication
+    app = pg.mkQApp() if not QApplication.instance() else QApplication.instance()
+
+    # Создаём окно с графиком
+    win = pg.GraphicsLayoutWidget(show=True, title="Live histogram (канал / попадания)")
+    win.resize(800, 600)
+    plot = win.addPlot(title="Live histogram (канал / попадания)")
+    plot.setLabel("left", "Количество")
+    plot.setLabel("bottom", "Номер канала")
+    plot.setXRange(0, RANGE_SPAN)
+    plot.setYRange(0, 1)  # будет автоматически подстраиваться
 
     counts: collections.Counter[int] = collections.Counter()
-    xs: List[int] = []
-    ys: List[int] = []
     last_refresh = time.monotonic()
+    bar_item = None
 
     def _render() -> None:
-        xs.clear()
-        ys.clear()
-        for key in sorted(counts):
-            xs.append(key)
-            ys.append(counts[key])
+        """Обновляет график с текущими данными."""
+        nonlocal bar_item
 
-        ax.clear()
-        ax.bar(xs, ys, width=1.0)
-        ax.set_xlabel("Номер канала")
-        ax.set_ylabel("Количество")
-        ax.set_title("Live histogram (канал / попадания)")
-        ax.set_xlim(0, RANGE_SPAN)
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        if not counts:
+            return
 
+        # Подготавливаем данные для отображения
+        channels = sorted(counts.keys())
+        xs = np.array(channels, dtype=np.int32)
+        ys = np.array([counts[ch] for ch in channels], dtype=np.int32)
+
+        # Удаляем старый график если есть
+        if bar_item is not None:
+            plot.removeItem(bar_item)
+
+        # Создаём новый bar graph
+        # Используем stepMode для гистограммы
+        bar_item = plot.plot(
+            xs, ys,
+            stepMode="center",
+            fillLevel=0,
+            brush="b",
+            pen="b",
+        )
+
+        # Обновляем диапазон Y автоматически
+        if len(ys) > 0:
+            max_y = int(ys.max() * 1.1) + 1
+            plot.setYRange(0, max_y)
+
+        # Обрабатываем события Qt для обновления окна
+        app.processEvents()
+
+    # Обрабатываем измерения
     for idx, meas in enumerate(measurements, start=1):
         counts[meas.channel_value] += 1
         current = time.monotonic()
+
+        # Обновляем график с заданной частотой
         if current - last_refresh >= refresh_interval:
             _render()
             last_refresh = current
 
+        # Обрабатываем события Qt для отзывчивости интерфейса
+        app.processEvents()
+
         if max_points is not None and idx >= max_points:
             break
 
+    # Финальное обновление
     _render()
-    plt.ioff()
-    plt.show(block=True)
+
+    # Блокирующий показ окна (пока пользователь не закроет)
+    win.show()
+    app.exec_()
 
     return counts
 
@@ -411,8 +446,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     for idx, meas in enumerate(measurements, start=1):
         print(
-            f"[{idx:04d}] channel={meas.channel_value:04X} "
-            f"a={meas.a_value:04X} b={meas.b_value:04X}"
+            f"[{idx:04d}] channel={meas.channel_value} "
+            f"a={meas.a_value} b={meas.b_value}"
         )
 
     return 0

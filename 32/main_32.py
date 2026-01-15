@@ -17,6 +17,14 @@ from scipy.special import voigt_profile
 
 import matplotlib.pyplot as plt
 import xraydb
+import collections
+from datetime import datetime
+
+# Импортируем классы из COM_v2.py для работы с COM портом
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+from COM_v2 import ComChannelReader, SerialConfig, RangeMeasurement, RangeParser, CHR_START, CHR_STOP
 
 class window(QMainWindow):
     def __init__(self):
@@ -78,6 +86,9 @@ class window(QMainWindow):
         self.ui.DelSpectra_pushButton.clicked.connect(self.delSpectra_pushButton)
 
         self.ui.Kristal_action.triggered.connect(self.kristalAnalization_pushButton)
+        # Подключаем кнопку Connect, если она есть в UI
+        if hasattr(self.ui, 'Connect_action'):
+            self.ui.Connect_action.triggered.connect(self.connect_pushButton)
 
         # Создаем PlotWidget для результатов
         self.plot_widget_resoult = pg.PlotWidget()
@@ -121,6 +132,18 @@ class window(QMainWindow):
 
         # Добавляем переменную для хранения результатов FWHM
         self.fwhm_results = []
+
+        # Переменные для работы с COM портом
+        self.com_reader = None  # Объект ComChannelReader
+        self.com_connected = False  # Флаг подключения к COM порту
+        self.com_data_timer = QTimer()  # Таймер для получения данных из COM порта
+        self.com_data_timer.timeout.connect(self.read_com_data)
+        self.com_histogram = collections.Counter()  # Гистограмма каналов из COM порта
+        self.com_save_counter = 0  # Счётчик для нумерации сохранённых файлов
+        self.com_observation_active = False  # Флаг активного режима наблюдения через COM
+        self.com_port = None  # Открытый COM порт для непрерывного чтения
+        self.com_parser = None  # Парсер для COM данных
+        self.com_save_folder = ""  # Папка для сохранения данных из COM порта
 
         self.console("Программа запущена", False)
 
@@ -334,10 +357,235 @@ class window(QMainWindow):
                 self.ui.CoordinatTable_tableWidget.setItem(i, 0, QtWidgets.QTableWidgetItem(str(x[i])))  # X координаты
                 self.ui.CoordinatTable_tableWidget.setItem(i, 1, QtWidgets.QTableWidgetItem(str(y[i])))  # Y координаты
 
+    def connect_pushButton(self):
+        """Подключение к COM порту"""
+        try:
+            if self.com_connected:
+                # Отключаемся от порта
+                self.disconnect_com()
+                self.console("Отключено от COM порта", False)
+                return
+            
+            # Параметры подключения по умолчанию
+            port = "COM1"
+            baudrate = 115200
+            
+            # Создаём конфигурацию порта
+            config = SerialConfig(
+                port=port,
+                baudrate=baudrate,
+                parity="N",
+                stopbits=1,
+                timeout=0.2
+            )
+            
+            # Создаём объект для чтения данных
+            self.com_reader = ComChannelReader(config)
+            
+            # Пробуем открыть порт (проверка подключения)
+            # Просто создаём объект, реальное подключение будет при чтении
+            self.com_connected = True
+            self.console(f"Подключено к {port} ({baudrate} бод)", False)
+            if hasattr(self.ui, 'Connect_action'):
+                self.ui.Connect_action.setText("Отключить")
+            
+        except Exception as e:
+            self.com_connected = False
+            self.com_reader = None
+            self.console(f"Ошибка подключения к COM порту: {str(e)}", True)
+            if hasattr(self.ui, 'Connect_action'):
+                self.ui.Connect_action.setText("Подключить")
+    
+    def disconnect_com(self):
+        """Отключение от COM порта"""
+        if self.com_observation_active:
+            self.stop_com_observation()
+        
+        # Закрываем порт, если он открыт
+        if self.com_port:
+            try:
+                self.com_port.close()
+            except:
+                pass
+            self.com_port = None
+        
+        self.com_parser = None
+        self.com_connected = False
+        self.com_reader = None
+        self.com_histogram.clear()
+        if hasattr(self.ui, 'Connect_action'):
+            self.ui.Connect_action.setText("Подключить")
+    
+    def read_com_data(self):
+        """Чтение данных из COM порта в реальном времени"""
+        if not self.com_connected or not self.com_port or not self.com_parser:
+            return
+        
+        try:
+            # Читаем доступные данные из порта
+            data = self.com_port.read(size=512)
+            if not data:
+                return
+            
+            # Парсим данные
+            measurements = self.com_parser.feed(list(data))
+            
+            # Обновляем гистограмму
+            for meas in measurements:
+                self.com_histogram[meas.channel_value] += 1
+            
+            # Обновляем график
+            if measurements:
+                self.update_com_graph()
+                
+        except Exception as e:
+            self.console(f"Ошибка чтения данных из COM порта: {str(e)}", True)
+            self.stop_com_observation()
+    
+    def update_com_graph(self):
+        """Обновление графика с данными из COM порта"""
+        if not self.com_histogram:
+            return
+        
+        # Преобразуем гистограмму в массивы X и Y
+        channels = sorted(self.com_histogram.keys())
+        x_data = np.array(channels, dtype=np.int32)
+        y_data = np.array([self.com_histogram[ch] for ch in channels], dtype=np.int32)
+        
+        # Обновляем данные для отображения
+        self.cor_X_File_1D = x_data.tolist()
+        self.cor_Y_File_1D = y_data.tolist()
+        
+        # Обновляем график
+        self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
+    
+    def save_com_data(self):
+        """Сохранение данных из COM порта в CSV файл"""
+        if not self.com_histogram:
+            self.console("Нет данных для сохранения", True)
+            return
+        
+        if not self.com_save_folder:
+            self.console("Папка для сохранения не выбрана", True)
+            return
+        
+        try:
+            # Получаем соединение и элемент из UI
+            compound = self.ui.Compound_lineEdit.text() or "unknown"
+            element = self.ui.Element_lineEdit.text() or "unknown"
+            
+            # Формируем имя файла: соединение_элемент_дата_номер.csv
+            date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self.com_save_counter += 1
+            filename = f"{compound}_{element}_{date_str}_{self.com_save_counter}.csv"
+            
+            file_path = os.path.join(self.com_save_folder, filename)
+            
+            # Сохраняем данные в CSV формат (X - канал, Y - количество)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write("X,Y\n")  # Заголовок
+                for channel in sorted(self.com_histogram.keys()):
+                    f.write(f"{channel},{self.com_histogram[channel]}\n")
+            
+            self.console(f"Данные сохранены: {filename}", False)
+            
+        except Exception as e:
+            self.console(f"Ошибка сохранения данных: {str(e)}", True)
+    
+    def start_com_observation(self):
+        """Запуск режима наблюдения через COM порт"""
+        if not self.com_connected or not self.com_reader:
+            self.console("Сначала подключитесь к COM порту", True)
+            return
+        
+        # Получаем период сохранения в минутах и переводим в миллисекунды
+        save_period_minutes = self.ui.time_spinBox.value()
+        save_period_ms = save_period_minutes * 60 * 1000
+        
+        if save_period_minutes <= 0:
+            self.console("Неверный период сохранения", True)
+            return
+        
+        # Запрашиваем папку для сохранения (только если ещё не выбрана)
+        if not self.com_save_folder:
+            folder_path = QtWidgets.QFileDialog.getExistingDirectory(
+                self, "Выберите папку для сохранения данных"
+            )
+            if not folder_path:
+                self.console("Папка для сохранения не выбрана", True)
+                return
+            self.com_save_folder = folder_path
+        
+        try:
+            # Открываем порт для непрерывного чтения
+            self.com_port = self.com_reader._open_port()
+            self.com_port.reset_input_buffer()
+            self.com_port.reset_output_buffer()
+            
+            # Отправляем стартовый символ
+            self.com_port.write(CHR_START)
+            self.com_port.flush()
+            
+            # Создаём парсер
+            self.com_parser = RangeParser()
+            
+            # Очищаем предыдущие данные
+            self.com_histogram.clear()
+            self.com_save_counter = 0
+            
+            # Запускаем таймер для чтения данных (каждые 100 мс)
+            self.com_data_timer.start(100)
+            
+            # Запускаем таймер для сохранения данных
+            self.observation_timer.start(save_period_ms)
+            self.observation_timer.timeout.disconnect()
+            self.observation_timer.timeout.connect(self.save_com_data)
+            
+            self.com_observation_active = True
+            self.ui.sum_pushButton.setStyleSheet("background-color: #90EE90;")
+            self.console(f"Режим наблюдения через COM порт запущен. Период сохранения: {save_period_minutes} мин", False)
+            
+        except Exception as e:
+            self.console(f"Ошибка запуска режима наблюдения: {str(e)}", True)
+            if self.com_port:
+                try:
+                    self.com_port.close()
+                except:
+                    pass
+                self.com_port = None
+            self.com_parser = None
+    
+    def stop_com_observation(self):
+        """Остановка режима наблюдения через COM порт"""
+        self.com_data_timer.stop()
+        self.observation_timer.stop()
+        
+        # Отправляем стоп-символ и закрываем порт
+        if self.com_port:
+            try:
+                self.com_port.write(CHR_STOP)
+                self.com_port.flush()
+                self.com_port.close()
+            except Exception as e:
+                self.console(f"Ошибка при закрытии порта: {str(e)}", True)
+            finally:
+                self.com_port = None
+        
+        self.com_parser = None
+        self.com_observation_active = False
+        self.com_save_folder = ""  # Очищаем папку для следующего запуска
+        self.ui.sum_pushButton.setStyleSheet("")
+        self.console("Режим наблюдения через COM порт остановлен", False)
+
     def sum_pushButton(self):
         """Обработчик нажатия кнопки суммирования"""
-        # Если наблюдение активно, ставим на паузу
-        if self.observation_timer.isActive():
+        # Если наблюдение через COM порт активно, останавливаем его
+        if self.com_observation_active:
+            self.stop_com_observation()
+            return
+        
+        # Если наблюдение через файлы активно, ставим на паузу
+        if self.observation_timer.isActive() and not self.com_observation_active:
             self.pause_observation()
             return
         # Если на паузе, возобновляем
@@ -351,7 +599,11 @@ class window(QMainWindow):
         
         # Проверяем режим наблюдения
         if self.ui.Observ_checkBox.isChecked():
-            self.start_observation_mode()
+            # Если подключен COM порт, используем режим наблюдения через COM
+            if self.com_connected:
+                self.start_com_observation()
+            else:
+                self.start_observation_mode()
         else:
             self.normal_sum_mode()
 
@@ -400,6 +652,11 @@ class window(QMainWindow):
 
     def start_observation_mode(self):
         """Запуск режима наблюдения"""
+        # Проверяем, не подключен ли COM порт
+        if self.com_connected:
+            self.console("COM порт подключен. Используется режим наблюдения через COM", False)
+            return
+        
         self.reset_state()
         # Запрашиваем папку для наблюдения
         folder_path = QtWidgets.QFileDialog.getExistingDirectory(self, "Выберите папку для наблюдения")
@@ -1662,6 +1919,11 @@ class window(QMainWindow):
 
     def pause_observation(self):
         """Поставить наблюдение на паузу"""
+        # Если активен COM режим, останавливаем его
+        if self.com_observation_active:
+            self.stop_com_observation()
+            return
+        
         self.observation_timer.stop()
         self.observation_paused = True
         # Меняем цвет кнопки на желтый
@@ -1670,6 +1932,11 @@ class window(QMainWindow):
 
     def resume_observation(self):
         """Возобновить наблюдение"""
+        # Если был COM режим, запускаем его снова
+        if self.com_connected:
+            self.start_com_observation()
+            return
+        
         # Получаем текущий период обновления
         update_period = self.ui.time_spinBox.value() * 60 * 1000
         self.observation_timer.start(update_period)
