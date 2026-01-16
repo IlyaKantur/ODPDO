@@ -24,7 +24,7 @@ python -c "import xraydb; import os; import inspect; print('xraydb at', os.path.
 
 **COM**
 
-python 32/COM_v2.py --port COM1 --baud 9600 --duration 5
+python 32/COM_v2.py --port COM1 --baud 115200 --duration 5
 python 32/COM_v2.py --simulate --samples 1000 --plot --sim-delay 0.2  # ~5 сигналов/сек по умолчанию
 
 **Алгоритм COM_v2.py**

@@ -24,7 +24,7 @@ from datetime import datetime
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from COM_v2 import ComChannelReader, SerialConfig, RangeMeasurement, RangeParser, CHR_START, CHR_STOP
+from src.COM_v2 import ComChannelReader, SerialConfig, RangeMeasurement, RangeParser, CHR_START, CHR_STOP
 
 class window(QMainWindow):
     def __init__(self):

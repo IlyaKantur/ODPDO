@@ -3,7 +3,7 @@
 from PyInstaller.utils.hooks import collect_data_files
 
 # Сбор статических данных: локальные UI-файлы + данные пакета xraydb (включая xraydb.sqlite)
-extra_datas = [('UI', 'UI')] + collect_data_files('xraydb')
+extra_datas = [('UI', 'UI')] + collect_data_files('xraydb') + collect_data_files('COM_v2.py')
 
 a = Analysis(
     ['main.py'],
