@@ -15,7 +15,6 @@ import argparse
 import collections
 import dataclasses
 import math
-import random
 import sys
 import time
 from typing import Callable, Iterable, Iterator, List, Optional, Sequence
@@ -42,18 +41,18 @@ RANGE_SPAN = 0xFFF
 
 # --- Структуры данных --------------------------------------------------------
 
-@dataclasses.dataclass(slots=True)
+@dataclasses.dataclass()
 class SerialConfig:
     """Параметры COM-порта, сопоставимые с PORTCFG в C++."""
 
     port: str
-    baudrate: int = 9600
+    baudrate: int = 115200
     parity: str = "N"  # pyserial ожидает 'N', 'E', 'O' и т.д.
     stopbits: int = 1
     timeout: float = 0.2
 
 
-@dataclasses.dataclass(slots=True)
+@dataclasses.dataclass()
 class RangeMeasurement:
     """Содержит исходные величины и вычисленное значение канала."""
 
@@ -195,167 +194,7 @@ class ComChannelReader:
         return serial_obj
 
 
-# --- Симуляция сигнала --------------------------------------------------------
-
-def _encode_pair(first: int, second: int) -> List[int]:
-    """Разбивает два 12-битных значения на 4 байта по протоколу."""
-
-    return [
-        (first & MASK_VALUE) | MASK_LOW,
-        ((first >> 6) & MASK_VALUE) | MASK_HIGH,
-        (second & MASK_VALUE) | MASK_LOW,
-        ((second >> 6) & MASK_VALUE) | MASK_HIGH2,
-    ]
-
-
-def generate_simulated_bytes(
-    samples: int,
-    *,
-    seed: Optional[int] = None,
-    noise: float = 0.08,
-) -> Iterator[int]:
-    """Формирует поток байтов, имитирующий работу прибора."""
-
-    rng = random.Random(seed)
-    samples = max(samples, 1)
-
-    for idx in range(samples):
-        # базируемся на синусоиде + шум -> условный сдвиг канала
-        phase = 2.0 * math.pi * (idx / samples)
-        ratio = 0.5 + 0.35 * math.sin(phase) + rng.uniform(-noise, noise)
-        ratio = max(0.05, min(0.95, ratio))
-
-        total = RANGE_SPAN - 2
-        first = int(total * ratio)
-        second = total - first
-        second = max(1, min(RANGE_SPAN - 1, second))
-        first = max(1, min(RANGE_SPAN - 1, first))
-
-        for byte in _encode_pair(first, second):
-            yield byte
-
-
-def simulated_measurement_stream(
-    samples: int,
-    *,
-    seed: Optional[int] = None,
-    chunk_size: int = 4,
-    delay: float = 0.2,
-) -> Iterator[RangeMeasurement]:
-    """Отдаёт измерения в темпе, приближенном к реальному устройству."""
-
-    parser = RangeParser()
-    chunk: List[int] = []
-
-    for byte in generate_simulated_bytes(samples, seed=seed):
-        chunk.append(byte)
-        if len(chunk) >= chunk_size:
-            for measurement in parser.feed(chunk):
-                yield measurement
-                if delay > 0:
-                    time.sleep(delay)
-            chunk.clear()
-
-    if chunk:
-        for measurement in parser.feed(chunk):
-            yield measurement
-            if delay > 0:
-                time.sleep(delay)
-
-
 # --- Live график --------------------------------------------------------------
-
-def plot_live_histogram(
-    measurements: Iterable[RangeMeasurement],
-    *,
-    refresh_interval: float = 0.2,
-    max_points: Optional[int] = None,
-) -> collections.Counter[int]:
-    """Строит график (канал -> количество попаданий) в режиме реального времени."""
-
-    try:
-        import pyqtgraph as pg  # type: ignore
-        from PyQt5.QtWidgets import QApplication  # type: ignore
-        import numpy as np  # type: ignore
-    except ImportError as exc:  # pragma: no cover - требуется pyqtgraph
-        raise RuntimeError(
-            "Для графика установите пакеты: pyqtgraph, PyQt5, numpy"
-        ) from exc
-
-    # Создаём или получаем QApplication
-    app = pg.mkQApp() if not QApplication.instance() else QApplication.instance()
-
-    # Создаём окно с графиком
-    win = pg.GraphicsLayoutWidget(show=True, title="Live histogram (канал / попадания)")
-    win.resize(800, 600)
-    plot = win.addPlot(title="Live histogram (канал / попадания)")
-    plot.setLabel("left", "Количество")
-    plot.setLabel("bottom", "Номер канала")
-    plot.setXRange(0, RANGE_SPAN)
-    plot.setYRange(0, 1)  # будет автоматически подстраиваться
-
-    counts: collections.Counter[int] = collections.Counter()
-    last_refresh = time.monotonic()
-    bar_item = None
-
-    def _render() -> None:
-        """Обновляет график с текущими данными."""
-        nonlocal bar_item
-
-        if not counts:
-            return
-
-        # Подготавливаем данные для отображения
-        channels = sorted(counts.keys())
-        xs = np.array(channels, dtype=np.int32)
-        ys = np.array([counts[ch] for ch in channels], dtype=np.int32)
-
-        # Удаляем старый график если есть
-        if bar_item is not None:
-            plot.removeItem(bar_item)
-
-        # Создаём новый bar graph
-        # Используем stepMode для гистограммы
-        bar_item = plot.plot(
-            xs, ys,
-            stepMode="center",
-            fillLevel=0,
-            brush="b",
-            pen="b",
-        )
-
-        # Обновляем диапазон Y автоматически
-        if len(ys) > 0:
-            max_y = int(ys.max() * 1.1) + 1
-            plot.setYRange(0, max_y)
-
-        # Обрабатываем события Qt для обновления окна
-        app.processEvents()
-
-    # Обрабатываем измерения
-    for idx, meas in enumerate(measurements, start=1):
-        counts[meas.channel_value] += 1
-        current = time.monotonic()
-
-        # Обновляем график с заданной частотой
-        if current - last_refresh >= refresh_interval:
-            _render()
-            last_refresh = current
-
-        # Обрабатываем события Qt для отзывчивости интерфейса
-        app.processEvents()
-
-        if max_points is not None and idx >= max_points:
-            break
-
-    # Финальное обновление
-    _render()
-
-    # Блокирующий показ окна (пока пользователь не закроет)
-    win.show()
-    app.exec_()
-
-    return counts
 
 
 # --- CLI ---------------------------------------------------------------------
@@ -365,7 +204,7 @@ def _build_argparser() -> argparse.ArgumentParser:
         description="Считывает данные из COM как wDetect и выводит каналы.",
     )
     parser.add_argument("--port", help="Например, COM3 или /dev/ttyUSB0")
-    parser.add_argument("--baud", type=int, default=9600)
+    parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--parity", default="N", choices=["N", "E", "O", "M", "S"])
     parser.add_argument("--stopbits", type=float, default=1.0)
     parser.add_argument("--timeout", type=float, default=0.2)
@@ -373,18 +212,6 @@ def _build_argparser() -> argparse.ArgumentParser:
                         help="Секунды чтения до отправки STOP")
     parser.add_argument("--chunk", type=int, default=512,
                         help="Размер блока чтения (байт)")
-    parser.add_argument("--simulate", action="store_true",
-                        help="Использовать генератор данных вместо порта")
-    parser.add_argument("--samples", type=int, default=2000,
-                        help="Число виртуальных измерений в симуляции")
-    parser.add_argument("--sim-delay", type=float, default=0.2,
-                        help="Задержка между измерениями симуляции, сек. (0.2 ≈ 5 Гц)")
-    parser.add_argument("--plot", action="store_true",
-                        help="Показать live-график (канал -> количество)")
-    parser.add_argument("--refresh", type=float, default=0.2,
-                        help="Частота обновления графика, сек.")
-    parser.add_argument("--seed", type=int, default=None,
-                        help="Seed для симулятора (повторяемость).")
     return parser
 
 
@@ -392,53 +219,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = _build_argparser()
     args = parser.parse_args(argv)
 
-    if not args.simulate and not args.port:
-        parser.error("Нужно указать --port или включить --simulate.")
+    if not args.port:
+        parser.error("Нужно указать --port.")
 
-    if args.simulate:
-        measurement_iter: Iterable[RangeMeasurement] = simulated_measurement_stream(
-            samples=args.samples,
-            seed=args.seed,
-            delay=args.sim_delay,
-        )
+    cfg = SerialConfig(
+        port=args.port,
+        baudrate=args.baud,
+        parity=args.parity,
+        stopbits=float(args.stopbits),
+        timeout=args.timeout,
+    )
 
-        if args.plot:
-            counts = plot_live_histogram(
-                measurements=measurement_iter,
-                refresh_interval=args.refresh,
-                max_points=args.samples,
-            )
-            print(f"Итого измерений: {sum(counts.values())}")
-            return 0
+    reader = ComChannelReader(cfg)
 
-        measurements = list(measurement_iter)
-    else:
-        cfg = SerialConfig(
-            port=args.port,
-            baudrate=args.baud,
-            parity=args.parity,
-            stopbits=float(args.stopbits),
-            timeout=args.timeout,
-        )
-
-        reader = ComChannelReader(cfg)
-
-        try:
-            if args.plot:
-                counts = plot_live_histogram(
-                    measurements=reader.iter_measurements(
-                        duration=args.duration,
-                        chunk_size=args.chunk,
-                    ),
-                    refresh_interval=args.refresh,
-                )
-                print(f"Итого измерений: {sum(counts.values())}")
-                return 0
-
-            measurements = reader.collect(duration=args.duration, chunk_size=args.chunk)
-        except Exception as exc:  # pragma: no cover - требует железа
-            print(f"Ошибка при чтении из {args.port}: {exc}", file=sys.stderr)
-            return 1
+    try:
+        measurements = reader.collect(duration=args.duration, chunk_size=args.chunk)
+    except Exception as exc:  # pragma: no cover - требует железа
+        print(f"Ошибка при чтении из {args.port}: {exc}", file=sys.stderr)
+        return 1
 
     if not measurements:
         print("Данные не получены.")

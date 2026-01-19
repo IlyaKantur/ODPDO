@@ -1,4 +1,4 @@
-from UI import Ui_MainWindow_32
+from UI import Ui_MainWindow
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (QMainWindow)
 from PyQt5.QtCore import QTime, QDateTime, QTimer
@@ -29,7 +29,7 @@ from src.COM_v2 import ComChannelReader, SerialConfig, RangeMeasurement, RangePa
 class window(QMainWindow):
     def __init__(self):
         super(window, self).__init__()
-        self.ui = Ui_MainWindow_32()
+        self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
         # Устанавливаем текстовое поле консоли как только для чтения
@@ -460,7 +460,7 @@ class window(QMainWindow):
         self.plotSummedData(self.cor_X_File_1D, self.cor_Y_File_1D)
     
     def save_com_data(self):
-        """Сохранение данных из COM порта в CSV файл"""
+        """Сохранение данных из COM порта в .dat файл"""
         if not self.com_histogram:
             self.console("Нет данных для сохранения", True)
             return
@@ -474,18 +474,22 @@ class window(QMainWindow):
             compound = self.ui.Compound_lineEdit.text() or "unknown"
             element = self.ui.Element_lineEdit.text() or "unknown"
             
-            # Формируем имя файла: соединение_элемент_дата_номер.csv
+            # Формируем имя файла: соединение_элемент_дата_номер.dat
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
             self.com_save_counter += 1
-            filename = f"{compound}_{element}_{date_str}_{self.com_save_counter}.csv"
+            filename = f"{compound}_{element}_{date_str}_{self.com_save_counter}.dat"
             
             file_path = os.path.join(self.com_save_folder, filename)
             
-            # Сохраняем данные в CSV формат (X - канал, Y - количество)
+            # Сохраняем данные в .dat формат (по аналогии с функцией save)
             with open(file_path, 'w', encoding='utf-8') as f:
-                f.write("X,Y\n")  # Заголовок
+                # Записываем информацию о соединении и элементе
+                f.write(f"Соединение: {compound}\n")
+                f.write(f"Элемент: {element}\n\n")
+                
+                # Записываем данные (X - канал, Y - количество), разделённые пробелом
                 for channel in sorted(self.com_histogram.keys()):
-                    f.write(f"{channel},{self.com_histogram[channel]}\n")
+                    f.write(f"{channel} {self.com_histogram[channel]}\n")
             
             self.console(f"Данные сохранены: {filename}", False)
             
@@ -611,6 +615,12 @@ class window(QMainWindow):
         """Обычный режим суммирования"""
         # Убеждаемся, что кнопка имеет стандартный цвет
         self.ui.sum_pushButton.setStyleSheet("")
+        
+        # Проверяем, что есть загруженные файлы
+        if not self.data_files or len(self.data_files) == 0:
+            self.console("Нет загруженных файлов для суммирования", True)
+            return
+        
         # Получаем значение из spinBox
         sum_points = self.ui.sum_spinBox.value()
         
@@ -639,16 +649,36 @@ class window(QMainWindow):
                 # Добавляем суммированные значения к total_y
                 total_y += summed_y
 
+        # Проверяем, что данные были суммированы
+        if total_y is None or total_x is None:
+            self.console("Не удалось суммировать данные", True)
+            return
+
+        # Преобразуем numpy массивы в списки для совместимости
+        if isinstance(total_y, np.ndarray):
+            total_y = total_y.tolist()
+        if isinstance(total_x, np.ndarray):
+            total_x = total_x.tolist()
+        
+        if len(total_x) == 0 or len(total_y) == 0:
+            self.console("Результат суммирования пуст", True)
+            return
+
+        # Сохраняем данные
+        self.cor_X_File_1D = total_x
         self.cor_Y_File_1D = total_y
+        
         # Сохраняем оригинальные данные
         self.original_X = self.cor_X_File_1D.copy()
         self.original_Y = self.cor_Y_File_1D.copy()
 
         # Теперь можно построить график для суммированных данных
-        self.plotSummedData(total_x, total_y)
-
-        text = f'Просуммировано {len(self.data_files)} файлов'
-        self.console(text, False)
+        try:
+            self.plotSummedData(total_x, total_y)
+            text = f'Просуммировано {len(self.data_files)} файлов'
+            self.console(text, False)
+        except Exception as e:
+            self.console(f"Ошибка при построении графика: {str(e)}", True)
 
     def start_observation_mode(self):
         """Запуск режима наблюдения"""
@@ -854,6 +884,19 @@ class window(QMainWindow):
             self.console(f"Ошибка при обработке файлов: {str(e)}", True)
 
     def plotSummedData(self, x, y):
+        # Проверяем, что списки не пустые (правильная проверка для numpy массивов и списков)
+        try:
+            x_len = len(x) if hasattr(x, '__len__') else 0
+            y_len = len(y) if hasattr(y, '__len__') else 0
+            if x_len == 0 or y_len == 0:
+                self.plot_widget_resoult.clear()
+                self.plot_widget_resoult.addItem(self.text_item_result)
+                return
+        except (TypeError, AttributeError):
+            self.plot_widget_resoult.clear()
+            self.plot_widget_resoult.addItem(self.text_item_result)
+            return
+        
         # Очищаем предыдущие графики
         self.plot_widget_resoult.clear()
         self.plot_widget_resoult.addItem(self.text_item_result)  # Возвращаем текстовый элемент
@@ -864,10 +907,32 @@ class window(QMainWindow):
         else:
             x_display = x
 
-        # Получаем имя первого файла для легенды
-        legend_name = os.path.basename(self.Name_File_1D[0])
-        legend_name = legend_name.split('-')
-        legend_name = legend_name[0]
+        # Получаем имя для легенды
+        if self.Name_File_1D and len(self.Name_File_1D) > 0:
+            # Если есть загруженные файлы, используем имя первого файла
+            legend_name = os.path.basename(self.Name_File_1D[0])
+            legend_name = legend_name.split('-')
+            legend_name = legend_name[0]
+        elif self.com_connected:
+            # Если подключен COM порт, формируем название из соединения и элемента
+            compound = self.ui.Compound_lineEdit.text().strip()
+            element = self.ui.Element_lineEdit.text().strip()
+            
+            # Формируем имя: если есть элемент или соединение, не показываем "COM"
+            parts = []
+            if compound:
+                parts.append(compound)
+            if element:
+                parts.append(element)
+            
+            if parts:
+                legend_name = "_".join(parts)
+            else:
+                # Если нет ни соединения, ни элемента, показываем "COM"
+                legend_name = "COM"
+        else:
+            # По умолчанию
+            legend_name = "Data"
 
         # Строим график для суммированных данных с точками
         self.plot_widget_resoult.plot(x_display, y, pen='g', name=legend_name, 
@@ -895,6 +960,11 @@ class window(QMainWindow):
 
     def updateCoordinatTable(self, x, y):
         """Обновление таблицы координат"""
+        # Проверяем, что списки не пустые
+        if not x or not y or len(x) == 0 or len(y) == 0:
+            self.ui.Coordinat_tableWidget.setRowCount(0)
+            return
+        
         self.ui.Coordinat_tableWidget.setColumnCount(2)
         self.ui.Coordinat_tableWidget.setColumnWidth(0, 72)
         self.ui.Coordinat_tableWidget.setColumnWidth(1, 72)
