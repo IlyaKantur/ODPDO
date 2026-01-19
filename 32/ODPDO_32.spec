@@ -6,7 +6,7 @@ from PyInstaller.utils.hooks import collect_data_files
 extra_datas = [('UI', 'UI')] + collect_data_files('xraydb')
 
 a = Analysis(
-    ['32/main_32.py'],
+    ['main_32.py'],
     pathex=[],
     binaries=[],
     datas=extra_datas,
