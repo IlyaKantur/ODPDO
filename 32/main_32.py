@@ -138,7 +138,9 @@ class window(QMainWindow):
         self.com_connected = False  # Флаг подключения к COM порту
         self.com_data_timer = QTimer()  # Таймер для получения данных из COM порта
         self.com_data_timer.timeout.connect(self.read_com_data)
-        self.com_histogram = collections.Counter()  # Гистограмма каналов из COM порта
+        # COM-гистограмма: фиксированный массив 4096 (0..4095),
+        # где индекс == номер канала, значение == количество попаданий.
+        self.com_histogram = np.zeros(4096, dtype=np.int64)
         self.com_save_counter = 0  # Счётчик для нумерации сохранённых файлов
         self.com_observation_active = False  # Флаг активного режима наблюдения через COM
         self.com_port = None  # Открытый COM порт для непрерывного чтения
@@ -412,7 +414,7 @@ class window(QMainWindow):
         self.com_parser = None
         self.com_connected = False
         self.com_reader = None
-        self.com_histogram.clear()
+        self.com_histogram.fill(0)
         if hasattr(self.ui, 'Connect_action'):
             self.ui.Connect_action.setText("Подключить")
     
@@ -430,9 +432,11 @@ class window(QMainWindow):
             # Парсим данные
             measurements = self.com_parser.feed(list(data))
             
-            # Обновляем гистограмму
+            # Обновляем гистограмму (значение из COM — индекс 0..4095)
             for meas in measurements:
-                self.com_histogram[meas.channel_value] += 1
+                ch = int(meas.channel_value)
+                if 0 <= ch < 4096:
+                    self.com_histogram[ch] += 1
             
             # Обновляем график
             if measurements:
@@ -444,13 +448,12 @@ class window(QMainWindow):
     
     def update_com_graph(self):
         """Обновление графика с данными из COM порта"""
-        if not self.com_histogram:
+        if int(self.com_histogram.sum()) == 0:
             return
         
-        # Преобразуем гистограмму в массивы X и Y
-        channels = sorted(self.com_histogram.keys())
-        x_data = np.array(channels, dtype=np.int32)
-        y_data = np.array([self.com_histogram[ch] for ch in channels], dtype=np.int32)
+        # Полный диапазон 0..4095 (4096 точек)
+        x_data = np.arange(4096, dtype=np.int32)
+        y_data = self.com_histogram.astype(np.int64)
         
         # Обновляем данные для отображения
         self.cor_X_File_1D = x_data.tolist()
@@ -461,7 +464,7 @@ class window(QMainWindow):
     
     def save_com_data(self):
         """Сохранение данных из COM порта в .dat файл"""
-        if not self.com_histogram:
+        if int(self.com_histogram.sum()) == 0:
             self.console("Нет данных для сохранения", True)
             return
         
@@ -487,9 +490,9 @@ class window(QMainWindow):
                 f.write(f"Соединение: {compound}\n")
                 f.write(f"Элемент: {element}\n\n")
                 
-                # Записываем данные (X - канал, Y - количество), разделённые пробелом
-                for channel in sorted(self.com_histogram.keys()):
-                    f.write(f"{channel} {self.com_histogram[channel]}\n")
+                # Записываем данные (X - канал, Y - количество), всегда 4096 строк
+                for channel in range(4096):
+                    f.write(f"{channel} {int(self.com_histogram[channel])}\n")
             
             self.console(f"Данные сохранены: {filename}", False)
             
@@ -533,8 +536,8 @@ class window(QMainWindow):
             # Создаём парсер
             self.com_parser = RangeParser()
             
-            # Очищаем предыдущие данные
-            self.com_histogram.clear()
+            # Очищаем предыдущие данные (4096 каналов)
+            self.com_histogram.fill(0)
             self.com_save_counter = 0
             
             # Запускаем таймер для чтения данных (каждые 100 мс)
