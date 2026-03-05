@@ -401,6 +401,7 @@ class window(QMainWindow):
     def disconnect_com(self):
         """Отключение от COM порта"""
         if self.com_observation_active:
+            self.original_Y = self.com_histogram
             self.stop_com_observation()
         
         # Закрываем порт, если он открыт
@@ -578,6 +579,7 @@ class window(QMainWindow):
             finally:
                 self.com_port = None
         
+        self.original_Y = self.com_histogram
         self.com_parser = None
         self.com_observation_active = False
         self.com_save_folder = ""  # Очищаем папку для следующего запуска
@@ -1568,14 +1570,14 @@ class window(QMainWindow):
         clicked_button = msg_box.clickedButton()
         
         # Сохраняем оригинальные данные Y перед первым сглаживанием
-        if not self.smoothed and self.original_Y.size == 0:
+        if not self.smoothed and len(self.original_Y) == 0:
             self.original_Y = self.cor_Y_File_1D.copy()
             
         try:
             if clicked_button == adjacent_button:
                 # Применяем метод Adjacent-Averaging
                 smoothed_data = self.adjacent_averaging(self.cor_Y_File_1D, points_count)
-                self.cor_Y_File_1D = smoothed_data
+                self.cor_Y_File_1D = smoothed_data.tolist()
                 self.smoothed = True
                 self.count_smoothed = points_count
                 self.console(f"Применено сглаживание методом Adjacent-Averaging по {points_count} точкам")
@@ -1598,7 +1600,7 @@ class window(QMainWindow):
                     try:
                         # Применяем фильтр Savitzky-Golay
                         smoothed_data = savgol_filter(self.cor_Y_File_1D, points_count, order)
-                        self.cor_Y_File_1D = smoothed_data
+                        self.cor_Y_File_1D = smoothed_data.tolist()
                         self.smoothed = True
                         self.count_smoothed = points_count
                         self.console(f"Применено сглаживание методом Savitzky-Golay по {points_count} точкам с порядком {order}")
@@ -1647,7 +1649,7 @@ class window(QMainWindow):
             self.console("Калибровка не была применена", True)
             return
             
-        if self.original_X.size == 0:
+        if len(self.original_X) == 0:
             self.console("Невозможно отменить калибровку: исходных данных нет", True)
             return
             
@@ -1665,7 +1667,7 @@ class window(QMainWindow):
             self.console("Сглаживание не было применено", True)
             return
             
-        if self.original_Y.size == 0:
+        if len(self.original_Y) == 0:
             self.console("Невозможно отменить сглаживание: исходных данных нет", True)
             return
             
