@@ -865,6 +865,12 @@ class window(QMainWindow):
                     # Добавляем суммированные значения к total_y
                     total_y += summed_y
 
+            # Преобразуем numpy массивы в списки для совместимости
+            if isinstance(total_y, np.ndarray):
+                total_y = total_y.tolist()
+            if isinstance(total_x, np.ndarray):
+                total_x = total_x.tolist()
+
             if prev_x is not None and prev_y is not None:
                 # Используем предыдущие данные
                 self.cor_X_File_1D = prev_x
@@ -965,8 +971,10 @@ class window(QMainWindow):
 
     def updateCoordinatTable(self, x, y):
         """Обновление таблицы координат"""
-        # Проверяем, что списки не пустые
-        if not x or not y or len(x) == 0 or len(y) == 0:
+        # Проверяем, что списки не пустые (используем len вместо not для поддержки numpy массивов)
+        x_len = len(x) if hasattr(x, '__len__') else 0
+        y_len = len(y) if hasattr(y, '__len__') else 0
+        if x_len == 0 or y_len == 0:
             self.ui.Coordinat_tableWidget.setRowCount(0)
             return
         
